@@ -19,36 +19,52 @@ ip = 'xeroxirc.net'
 port = 6697
 
 # Welcome!
-print('Welcome to {}!'.format(nick), file=sys.stderr)
-irc = IRC(ip, port, nick, channels, ident=ident, realname=realname,
-    ns_identity=identity, debug=debug, auto_connect=False)
+print("  ________  ___  ___  ________  _________        ________  ________  _________   ")
+print(" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
+print(" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
+print("  \ \  \    \ \   __  \ \   __  \   \ \  \       \ \   __  \ \  \\\  \   \ \  \  ")
+print("   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \   \ \  \ ")
+print("    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
+print("     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
+
+server= input("Please enter your desired server, if you don't enter anything it will default to ::1")
+if server == (""):
+    server == ("::1")
+
+port= input("Please enter your desired port, if you don't enter anything it will default to 6667")
+if port == (""):
+    port == ("6667")
+
+nick= input("Please enter your desired nickname, if you don't enter anything it will default to BotLol")
+if nick == (""):
+    nick == ("BotLol")
 
 # Handle normal messages
 # This could probably be better than a large if/else statement.
-@irc.Handler('PRIVMSG', colon=False)
-def handle_privmsg(irc, hostmask, args):
-    channel = args[0]
-    text = args[-1].split(' ')
-    cmd = text[0].lower()
-    # Unprefixed commands here
-    if cmd.startswith('meep'):
-        irc.msg(channel, '\u200bMeep!')
-    elif cmd.startswith(prefix):
-        # Prefixed commands
-        cmd = cmd[len(prefix):]
-        if cmd == 'yay':
-            irc.msg(channel, '\u200bYay!')
-        elif cmd == 'rev':
-            if len(text) > 1:
-                irc.msg(channel, "{}: {}".format(hostmask[0],
-                    ' '.join(text[1:])[::-1]))
-            else:
-                irc.msg(channel, 'Invalid syntax! Syntax: ' + prefix +
-                    'rev <string>')
-        elif cmd == 'about':
-            irc.msg(channel,
-                'I am {}, an example miniirc bot.'.format(irc.nick))
+# @irc.Handler('PRIVMSG', colon=False)
+# def handle_privmsg(irc, hostmask, args):
+#     channel = args[0]
+#     text = args[-1].split(' ')
+#     cmd = text[0].lower()
+#     # Unprefixed commands here
+#     if cmd.startswith('meep'):
+#         irc.msg(channel, '\u200bMeep!')
+#     elif cmd.startswith(prefix):
+#         # Prefixed commands
+#         cmd = cmd[len(prefix):]
+#         if cmd == 'yay':
+#             irc.msg(channel, '\u200bYay!')
+#         elif cmd == 'rev':
+#             if len(text) > 1:
+#                 irc.msg(channel, "{}: {}".format(hostmask[0],
+#                     ' '.join(text[1:])[::-1]))
+#             else:
+#                 irc.msg(channel, 'Invalid syntax! Syntax: ' + prefix +
+#                     'rev <string>')
+#         elif cmd == 'about':
+#             irc.msg(channel,
+#                 'I am {}, an example miniirc bot.'.format(irc.nick))
 
 # Connect
-if __name__ == '__main__':
-    irc.connect()
+# if __name__ == '__main__':
+#     irc.connect()
