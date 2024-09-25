@@ -1,54 +1,44 @@
-# Example miniirc-based bot © 2018 by luk3yx
-#outline of code from https://github.com/luk3yx/stdinbot/blob/master/example.py
-
-
-import miniirc, sys
-assert miniirc.ver >= (1,4,0), 'This bot requires miniirc >= v1.4.0.'
+import socket
 
 # Variables
-nick     = 'miniirc-test' + str(hash('.'))[1:4] # Make a unique(-ish) nickname
-ident    = nick
+nick     = ""
 realname = 'Example miniirc bot - https://gitlab.com/luk3yx/stdinbot'
-identity = None
+# identity = None
 # identity = '<username> <password>'
-debug    = False
-channels = ['#lurk']
 prefix   = '`'
 
-ip = 'xeroxirc.net'
-port = 6697
+server= ""
+port = 6667
 
 # Welcome!
-print('Welcome to {}!'.format(nick), file=sys.stderr)
-irc = IRC(ip, port, nick, channels, ident=ident, realname=realname,
-    ns_identity=identity, debug=debug, auto_connect=False)
+print("  ________  ___  ___  ________  _________        ________  ________  _________   ")
+print(" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
+print(" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
+print("  \ \  \    \ \   __  \ \   __  \   \ \  \       \ \   __  \ \  \\\  \   \ \  \  ")
+print("   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \   \ \  \ ")
+print("    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
+print("     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
 
-# Handle normal messages
-# This could probably be better than a large if/else statement.
-@irc.Handler('PRIVMSG', colon=False)
-def handle_privmsg(irc, hostmask, args):
-    channel = args[0]
-    text = args[-1].split(' ')
-    cmd = text[0].lower()
-    # Unprefixed commands here
-    if cmd.startswith('meep'):
-        irc.msg(channel, '\u200bMeep!')
-    elif cmd.startswith(prefix):
-        # Prefixed commands
-        cmd = cmd[len(prefix):]
-        if cmd == 'yay':
-            irc.msg(channel, '\u200bYay!')
-        elif cmd == 'rev':
-            if len(text) > 1:
-                irc.msg(channel, "{}: {}".format(hostmask[0],
-                    ' '.join(text[1:])[::-1]))
-            else:
-                irc.msg(channel, 'Invalid syntax! Syntax: ' + prefix +
-                    'rev <string>')
-        elif cmd == 'about':
-            irc.msg(channel,
-                'I am {}, an example miniirc bot.'.format(irc.nick))
+server= input("Please enter your desired server, if you don't enter anything it will default to '::1': ")
+if server == "":
+    server = "::1"
 
-# Connect
-if __name__ == '__main__':
-    irc.connect()
+try:
+    port = int(input("Please enter your desired port, if you don't enter anything it will default to 6667: ") or "6667")
+except ValueError:
+    port = 6667
+
+
+nick= input("Please enter your desired nickname, if you don't enter anything it will default to BotLol: ")
+if nick == (""):
+    nick = "BotLol"
+
+#https://realpython.com/python-sockets/
+with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+    print(server)
+    print(port)
+    s.connect((server, port))
+    s.sendall(b"Hello, world")
+    data = s.recv(1024)
+
+print(f"Received {data!r}")
