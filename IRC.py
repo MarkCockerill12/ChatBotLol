@@ -4,6 +4,7 @@
 import socket
 import sys
 
+
 server = "server"       #settings
 channel = "#channel"
 botnick = "botname"
