@@ -2,10 +2,6 @@ import socket
 
 # Variables
 nick     = ""
-realname = 'Example miniirc bot - https://gitlab.com/luk3yx/stdinbot'
-# identity = None
-# identity = '<username> <password>'
-prefix   = '`'
 
 server= ""
 port = 6667
@@ -21,25 +17,29 @@ print("    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\ 
 print("     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
 
 #User Inputs
+#Bot asks for desired server and defaults to ::1
 server= input("Please enter your desired server, if you don't enter anything it will default to '::1': ")
 if server == "":
     server = "::1"
 
+#Bot asks for desired port and defaults to 6667
 try:
     port = int(input("Please enter your desired port, if you don't enter anything it will default to 6667: ") or "6667")
 except ValueError:
     port = 6667
 
-
+#Bot asks for desired nickname and defaults to BotLol
 nick= input("Please enter your desired nickname, if you don't enter anything it will default to BotLol: ")
 if nick == (""):
     nick = "BotLol"
 
+#Bot asks for desired channel and defaults to #Test
 channel = input("What channel should the bot join? If you don't enter anything it will default to #Test")
 if channel == "":
-    channel == "Test"
+    channel == "#Test"
 
-#https://realpython.com/python-sockets/
+
+#some code snippets from https://realpython.com/python-sockets/
 with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
     print(server)
     print(port)
