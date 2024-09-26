@@ -1,11 +1,10 @@
 import socket
 
 # Variables
-nick     = ""
-
-server= ""
+nick = ""
+server = ""
 port = 6667
-
+channel_info = {}  # Dictionary to store channel information
 
 # Welcome!
 print("  ________  ___  ___  ________  _________        ________  ________  _________   ")
@@ -16,61 +15,87 @@ print("   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \  
 print("    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
 print("     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
 
-#User Inputs
-#Bot asks for desired server and defaults to ::1
-server= input("Please enter your desired server, if you don't enter anything it will default to '::1': ")
+# User Inputs
+# Bot asks for desired server and defaults to ::1
+server = input("Please enter your desired server, if you don't enter anything it will default to '::1': ")
 if server == "":
     server = "::1"
 
-#Bot asks for desired port and defaults to 6667
+# Bot asks for desired port and defaults to 6667
 try:
     port = int(input("Please enter your desired port, if you don't enter anything it will default to 6667: ") or "6667")
 except ValueError:
     port = 6667
 
-#Bot asks for desired nickname and defaults to BotLol
-nick= input("Please enter your desired nickname, if you don't enter anything it will default to BotLol: ")
-if nick == (""):
+# Bot asks for desired nickname and defaults to BotLol
+nick = input("Please enter your desired nickname, if you don't enter anything it will default to BotLol: ")
+if nick == "":
     nick = "BotLol"
 
-#Bot asks for desired channel and defaults to #Test
-channel = input("What channel should the bot join? If you don't enter anything it will default to #Test")
+# Bot asks for desired channel and defaults to #Test
+channel = input("What channel should the bot join? If you don't enter anything it will default to #Test: ")
 if channel == "":
-    channel == "#Test"
+    channel = "#Test"
 
+# Improved socket handling with explicit connection closing
+try:
+    with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
+        print(f"Connecting to {server}:{port}...")
+        s.connect((server, port))
 
-#some code snippets from https://realpython.com/python-sockets/
-with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
-    print(server)
-    print(port)
-    s.connect((server, port))
-    
-    Connected = True
-    #Sends Nick and User to join server - Need to make it work with user inputs
-    s.send(b"NICK BotLol\r\n")
-    s.send(b"USER Bot Bot2 Bot3 Bot4\r\n")
+        Connected = True
+        
+        # Sends Nick and User to join the server using user inputs
+        s.send(f"NICK {nick}\r\n".encode('utf-8'))
+        s.send(f"USER {nick} 0 * :{nick}\r\n".encode('utf-8'))
 
-    #Commands for Bot to do - Need to make it work with user inputs
-    s.send(b"JOIN #Test\r\n")
-    s.send (b"PRIVMSG #Test :Hello World.\r\n")
-    
-    #Handler for Ping / Pong requests to avoid timeout needs work
-    #while Connected
-     #data = s.recv(1024).decode
-    # print(data)
-     #if data[0:4] == "PING"
-     # print(data)
-    #  s.send(b"PONG" + data.split()[1]+"r\n")
-     # print("Pong")
+        # Joins the specified channel
+        s.send(f"JOIN {channel}\r\n".encode('utf-8'))
 
+        # Wait for server's response before sending a message
+        while Connected:
+            data = s.recv(1024).decode('utf-8')
+            print("Server Response:", data.strip())  # Debugging line to check server's response
 
-    while Connected:
-        data = s.recv(1024).decode()
-        print(data)
-        if data[0:4] == "PING":
-            s.send(s, data.replace("PING", server))
-            print("Pong")
+            # Store channel information from server responses
+            if "JOIN" in data and channel.lower() in data.lower():
+                channel_info[channel] = data.strip()
+                print(f"Stored channel information: {channel_info[channel]}")
 
+            # Look for a "JOIN" confirmation from the server
+            if f":{nick}!{nick}@".lower() in data.lower() and "join".lower() in data.lower():
+                print(f"Successfully joined {channel}. Sending message...")
+                s.send(f"PRIVMSG {channel} :Hello {channel}. I am BotLol, the friendly chat Bot, say !hello to talk to me, or say anything else .\r\n".encode('utf-8'))
+                print(f"Message sent to {channel}: 'Hello World.'")
+                break  # Exit the loop after sending the message
 
-    
+            # Ping-Pong Handler for server communication
+            if data.startswith("PING"):
+                # Extract the server's ping message and reply with a PONG
+                ping_response = data.split()[1]
+                s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
+                print(f"Sent PONG response to {ping_response}")
 
+            # Handle messages from the channel
+            if "PRIVMSG" in data:
+                sender = data.split('!', 1)[0][1:]
+                message = data.split('PRIVMSG', 1)[1].split(':', 1)[1]
+                print(f"Message from {sender}: {message}")
+
+                if message.strip().lower() == "!hello":
+                    response = f"Hello, {sender}!"
+                    s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                    print(f"Responded to {sender}: {response}")
+                else:
+                    response = f"You're SOOO right, {sender}! You're so amazing"
+                    s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                    print(f"Responded to {sender}: {response}")
+
+# Exception handling
+except (KeyboardInterrupt, SystemExit):
+    print("Bot interrupted, closing connection...")
+except Exception as e:
+    print(f"An error occurred: {e}")
+finally:
+    # This ensures the socket is properly closed when the bot stops or an error occurs
+    print("Connection closed.")
