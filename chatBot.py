@@ -62,19 +62,23 @@ try:
                 channel_info[channel] = data.strip()
                 print(f"Stored channel information: {channel_info[channel]}")
 
-            # Look for a "JOIN" confirmation from the server
+           # Look for a "JOIN" confirmation from the server
             if f":{nick}!{nick}@".lower() in data.lower() and "join".lower() in data.lower():
                 print(f"Successfully joined {channel}. Sending message...")
-                s.send(f"PRIVMSG {channel} :Hello {channel}. I am BotLol, the friendly chat Bot, say !hello to talk to me, or say anything else .\r\n".encode('utf-8'))
+                s.send(f"PRIVMSG {channel} :Hello {channel}. I am BotLol, the friendly chat Bot, say !help to find out how talk to me.\r\n".encode('utf-8'))
                 print(f"Message sent to {channel}: 'Hello World.'")
-                break  # Exit the loop after sending the message
 
-            # Ping-Pong Handler for server communication
+            # Check for "PING" message from server
             if data.startswith("PING"):
                 # Extract the server's ping message and reply with a PONG
                 ping_response = data.split()[1]
                 s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
                 print(f"Sent PONG response to {ping_response}")
+
+            # Exit loop on QUIT command or some other condition (add custom logic here if needed)
+            if "/leave" in data.lower():
+                Connected = False
+                print("Quitting...")
 
             # Handle messages from the channel
             if "PRIVMSG" in data:
@@ -82,12 +86,22 @@ try:
                 message = data.split('PRIVMSG', 1)[1].split(':', 1)[1]
                 print(f"Message from {sender}: {message}")
 
+                if message.strip().lower() == "!quit":
+                    response = f"Alright see ya, {sender}!"
+                    s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                    Connected = False
+                    print("Quitting...")
+
                 if message.strip().lower() == "!hello":
                     response = f"Hello, {sender}!"
                     s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
                     print(f"Responded to {sender}: {response}")
+                if message.strip().lower() == "!help":
+                    response = f"!Hello - I will say hello back to you.!Quit - I will say goodbye and leave the channel."
+                    s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                    print(f"Responded to {sender}: {response}")
                 else:
-                    response = f"You're SOOO right, {sender}! You're so amazing"
+                    response = f"You're SOOO right, {sender}! You're sooo amazing"
                     s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
                     print(f"Responded to {sender}: {response}")
 
