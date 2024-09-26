@@ -63,6 +63,7 @@ with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
     #  s.send(b"PONG" + data.split()[1]+"r\n")
      # print("Pong")
 
+
     while Connected:
         data = s.recv(1024).decode()
         print(data)
@@ -72,3 +73,4 @@ with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as s:
 
 
     
+
