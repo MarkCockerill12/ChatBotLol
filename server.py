@@ -1,5 +1,5 @@
 import socket
-import sys
+import select
 import time
 
 class Server:
@@ -21,35 +21,71 @@ class Server:
                 self.timeFirst = time.time()
                 return receiveData
             else: return None
-        
+    
+    def operation(self, operat):
+        if operat == "NICK":
+            self.NICK()
+        elif operat == "USER":
+            self.USER()
+        elif operat == "PONG":
+            pass
+        elif operat == "QUIT":
+            pass
+        elif operat == "JOIN":
+            pass
+        else:
+            print("unknown command")
+    
 
     def checkCommand(self, data):
         # do regex in here to check commands match the correct formats. 
         sections = data.split()
-        
+        print("checking")
         print(sections)
+
         for s in sections:
             match s:
                 case "NICK":
-                    self.clients[sections[1]] = Client(sections[1])
-                    self.temp = [sections[1]]
-                case "USER":
-                    if type(self.temp) == str:
+                    try: 
+                        self.operation(temp[0])
+                    except:
                         pass
-                        #self.clients[self.temp]
-                    pass
+
+                    temp = ["NICK"]
+                    
+                case "USER":
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
+
+                    temp = ["USER"]
 
                 case "PONG":
-                    pass
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
+
+                    temp = ["PONG"]
+                
                 case "JOIN":
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
+
                     print("Asked to join ", sections[1])
                 
-            
+            temp.append[s]
+
 
     def NICK(self):
         pass
+
     def USER(self):
         pass
+
     def JOIN(self):
         pass
 
@@ -58,8 +94,8 @@ class Server:
 
     def main(self):
         self.timeFirst = time.time()
-        if not self.tennis & self.timeDifference > 60:
-            #send ping
+        if not self.tennis and self.timeDifference > 60:
+            self.sendData("PING %s" %(self.clients[0]))
             pass
         elif self.tennis == False:
             self.timeDifference = self.timeFirst - time.time()
@@ -73,11 +109,24 @@ class Server:
         print("Socket listening")
 
         while True:
-            self.socOb, self.addr = self.soc.accept()
+            readable = [self.soc]
+            writeable = []
+            errable = []
+
+            read, write, e = select.select(readable, writeable, errable,1.0)
+            if read:
+                self.socOb, self.addr = self.soc.accept()
+                self.checkCommand(self.receiveData())
+            elif write:
+                self.checkCommand(self.receiveData())
+            else:
+                print("Check")
+
+            
             #print("Connecting from %s" %(self.addr))
             #print(self.receiveData())
             #self.sendData("Thanks for connecting")
-            self.checkCommand(self.receiveData())
+            #self.checkCommand(self.receiveData())
 
             self.tennis = False
 
@@ -96,18 +145,20 @@ class Client:
     def setNick(self):
         pass
 
-    def setUser(self, USERarr:[str, str, str, str]):
+    def setUser(self, USERarr:list[str, str, str, str]):
         self.USER = USERarr
-
-    def __init__(self,NICK):
-        self.NICK = NICK
-        self.USER = None[4]
-
-
 
     def __init__(self):
         self.NICK = ""
-        self.USER = None[4]
+        self.USER = [None,None,None,None]
+
+    def __init__(self,NICK):
+        self.NICK = NICK
+        self.USER = [None,None,None,None]
+
+
+
+
 
 class Channel:
     def __init__(self):
