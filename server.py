@@ -2,88 +2,142 @@ import socket
 import select
 import time
 
+class Client:
+
+    def setNick(self, nickName, permissions, realName):
+        self.NICK = nickName
+        self.permissions = permissions
+        self.realname = realName
+        print("x")
+
+    def setUser(self, USERarr:list[str, str, str]):
+        self.USER = USERarr
+        print("a")
+
+    def setSocketObj(self, socketObject):
+        self._ownSocketObj = socketObject
+
+    def getSocketObj(self):
+        return self._ownSocketObj
+
+    def __init__(self):
+        self.NICK = ""
+        self.USER = [None,None,None]
+        self.realname = ""
+        self._ownSocketObj = None
+
+    def __init__(self,NICK):
+        self.NICK = NICK
+        self.USER = [None,None,None]
+        self.realname = ""
+        self._ownSocketObj = None
+
+
+
+
+
+
+class Channel:
+    def __init__(self):
+        self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
+
+
 class Server:
     
     def sendData(self,data):
-                """ Sends data to the connected client. """
         try:
-            self.socOb.send(data.encode())
+            print("attempt to send")
+
+            self.socOb.sendall(bytes(data, 'utf-8'))
+
             self.tennis = True
             self.timeFirst = time.time()
         except socket.error as e:
             print(f"Error sending data: {e}")
 
-    def receiveData(self):
-               """ Receives data from the connected client. """
-        try:
-            receiveData = self.socOb.recv(1024).decode()
-            if receiveData:
-                self.tennis = True
-                self.timeFirst = time.time()
-                return receiveData
+    def receiveData(self, readable:list[socket]):
+        try:            
+            r, w, e = select.select(readable, [], [], 1.0)
+            if r:
+                receiveData = readable[0].recv(1024).decode()
+                if receiveData:
+                    self.tennis = True
+                    self.timeFirst = time.time()
+                    return receiveData
+            else:
+                print("Read time out")
+                return None
+                
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
     
-    def operation(self, operat):
-        if operat == "NICK":
-            self.NICK()
-        elif operat == "USER":
-            self.USER()
-        elif operat == "PONG":
+    def operation(self, command):
+        if command[0] == "NICK":
+            self.NICK(command[1])
+        elif command[0] == "USER":
+            self.USER(command[1], command[2], command[4])
+        elif command[0] == "PONG":
             pass
-        elif operat == "QUIT":
+        elif command[0] == "QUIT":
             pass
-        elif operat == "JOIN":
-            pass
+        elif command[0] == "JOIN":
+            print("join")
         else:
             print("unknown command")
     
 
     def checkCommand(self, data):
         # do regex in here to check commands match the correct formats. 
+        if not data:
+            return
+        
         sections = data.split()
-        print("checking")
         print(sections)
+        temp = []
 
         for s in sections:
             match s:
                 case "NICK":
                     try: 
-                        self.operation(temp[0])
+                        self.operation(temp)
                     except:
                         pass
 
-                    temp = ["NICK"]
+                    temp = []
                     
                 case "USER":
                     try: 
-                        self.operation(temp[0])
+                        self.operation(temp)
                     except:
                         pass
 
-                    temp = ["USER"]
+                    temp = []
 
                 case "PONG":
                     try: 
-                        self.operation(temp[0])
+                        self.operation(temp)
                     except:
                         pass
 
-                    temp = ["PONG"]
+                    temp = []
                 
                 case "JOIN":
                     try: 
-                        self.operation(temp[0])
+                        self.operation(temp)
                     except:
                         pass
+                    temp = []
 
-                    print("Asked to join ", sections[1])
-                
-            temp.append[s]
+            temp.append(s)
+        try: 
+            self.operation(temp)
+        except:
+            pass
 
 
-    def NICK(self):
+    def NICK(self, nickname):
+
         if not nickname:
             raise ValueError("No nickname provided.")
         if len(nickname) < 3 or len(nickname) > 15:
@@ -100,13 +154,17 @@ class Server:
         self.sendData(welcome_message)
         print(f"Nickname set to: {nickname}")
 
-    def USER(self):
-                """ Handles client communication. """
-        client_data = self.receiveData()
-        if client_data:
-            self.checkCommand(client_data)
-        else:
-            print("No data received from the client.")
+    def USER(self, username:str, permission:str, realname:str):
+        if realname[0] != ":":
+            return 0
+        permissions = permission.split()
+        for p in permissions:
+            permissions[permissions.index(p)] = int(p)
+        name = realname.strip(":")
+
+        self.clients[username].setUser([username, permissions, name]) 
+        
+
 
     def JOIN(self):
         pass
@@ -129,62 +187,41 @@ class Server:
 
         self.soc.listen(5)
         print("Socket listening")
-
+        readable = [self.soc]
+        writable = []
+        tempSocketObject = []
+        index = 0
         while True:
-            readable = [self.soc]
-            writeable = []
-            errable = []
+            readConnection, readCommand, e = select.select(readable, writable, [],1.0)
 
-            read, write, e = select.select(readable, writeable, errable,1.0)
-            if read:
-                self.socOb, self.addr = self.soc.accept()
-                self.checkCommand(self.receiveData())
-            elif write:
-                self.checkCommand(self.receiveData())
+            if readConnection:
+                tempSocketObject = self.soc.accept() #connecting client to server
+                time.sleep(0.2)                
+                self.checkCommand(self.receiveData([tempSocketObject[0]]))
+                tempArr = []
+                for client in self.clients.values():
+                    tempArr.append(client)
+                tempArr[index].setSocketObj(tempSocketObject[0])
+                # [index].setSocketObj(tempSocketObject[0])
+
             else:
-                print("Check")
-
+                if self.clients:
+                    for client in self.clients.values():
+                        tempSocketObject = [client.getSocketObj()]
+                        self.checkCommand(self.receiveData([tempSocketObject[0]]))
             
-            #print("Connecting from %s" %(self.addr))
-            #print(self.receiveData())
-            #self.sendData("Thanks for connecting")
-            #self.checkCommand(self.receiveData())
-
             self.tennis = False
 
     def __init__(self):
         self.tennis = False
         self.timeDifference = 0
         self.timeFirst = time.time()
-        #self.checkCommand("NICK * edwardFoster")
+        #self.checkCommand("NICK edwardFoster")
         self.channels = {} # will be dictionary of channel classes with key as channel name and value as class
         self.clients = {} # will be dictionary of users in the server, key as NICK and value of client class
         self.main()
 
 
-class Client:
-
-    def setNick(self):
-        pass
-
-    def setUser(self, USERarr:list[str, str, str, str]):
-        self.USER = USERarr
-
-    def __init__(self):
-        self.NICK = ""
-        self.USER = [None,None,None,None]
-
-    def __init__(self,NICK):
-        self.NICK = NICK
-        self.USER = [None,None,None,None]
-
-
-
-
-
-class Channel:
-    def __init__(self):
-        self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
 
 if __name__ == "__main__":
     test = Server()
