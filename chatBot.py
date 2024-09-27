@@ -1,4 +1,5 @@
 import socket
+import time
 
 # Variables
 nick = ""
@@ -57,10 +58,17 @@ try:
             data = s.recv(1024).decode('utf-8')
             print("Server Response:", data.strip())  # Debugging line to check server's response
 
-            # Store channel information from server responses
-            if "JOIN" in data and channel.lower() in data.lower():
-                channel_info[channel] = data.strip()
-                print(f"Stored channel information: {channel_info[channel]}")
+            # Store channel information from server responses (more explicit)
+            if f":{nick}!{nick}@".lower() in data.lower() and "join".lower() in data.lower():
+                print(f"Join event detected for {nick} in {channel}")
+                channel_info[channel] = {
+                'user': nick,
+                'channel': channel,
+                'timestamp': time.time(),  # Optional, to store the time when the bot joined
+                'server_response': data.strip()  # Optional, to store the entire server response
+            }
+            print(f"Stored channel information: {channel_info[channel]}")
+
 
            # Look for a "JOIN" confirmation from the server
             if f":{nick}!{nick}@".lower() in data.lower() and "join".lower() in data.lower():
@@ -74,13 +82,8 @@ try:
                 ping_response = data.split()[1]
                 s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
                 print(f"Sent PONG response to {ping_response}")
-
-            # Exit loop on QUIT command or some other condition (add custom logic here if needed)
-            if "/leave" in data.lower():
-                Connected = False
-                print("Quitting...")
-
-            # Handle messages from the channel
+                
+                # Handle messages from the channel
             if "PRIVMSG" in data:
                 sender = data.split('!', 1)[0][1:]
                 message = data.split('PRIVMSG', 1)[1].split(':', 1)[1]
@@ -92,18 +95,36 @@ try:
                     Connected = False
                     print("Quitting...")
 
-                if message.strip().lower() == "!hello":
+                elif message.strip().lower() == "!hello":
                     response = f"Hello, {sender}!"
                     s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
                     print(f"Responded to {sender}: {response}")
-                if message.strip().lower() == "!help":
-                    response = f"!Hello - I will say hello back to you.!Quit - I will say goodbye and leave the channel."
+
+                elif message.strip().lower() == "!help":
+                    response = f"!Hello - I will say hello back to you. !Quit - I will say goodbye and leave the channel. !SaveData - I will show you the stored channel information."
                     s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
                     print(f"Responded to {sender}: {response}")
+
+                elif message.strip().lower() == "!savedata":
+                    # Check if the channel information is available
+                    print("AAARGH")
+                    if channel in channel_info:
+                        response = f"Stored channel information: {channel_info[channel]}"
+                        s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                        print(f"Responded to {sender}: {response}")
+                    else:
+                        response = "No channel information saved yet."
+                        s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                        print(f"Responded to {sender}: {response}")
+
                 else:
                     response = f"You're SOOO right, {sender}! You're sooo amazing"
                     s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
                     print(f"Responded to {sender}: {response}")
+
+
+            
+
 
 # Exception handling
 except (KeyboardInterrupt, SystemExit):
