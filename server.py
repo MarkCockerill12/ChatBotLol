@@ -1,51 +1,11 @@
 import socket
-import sys
+import select
 import time
 
 class Server:
-    def __init__(self):
-        # Data structures for managing clients and channels
-        self.tennis = False
-        self.timeDifference = 0
-        self.timeFirst = time.time()
-        self.channels = {}  # Dictionary of channel classes
-        self.clients = {}   # Dictionary of users in the server
-        self.temp = None    # Temporary variable for current user
-        self.port = 6667    # Server port
-        self.setup_server()
-
-    def setup_server(self):
-        """ Initializes and sets up the server socket. """
-        self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        try:
-            self.soc.bind(('', self.port))
-            print(f"Socket bound to {self.port}")
-        except socket.error as e:
-            print(f"Error binding socket: {e}")
-            sys.exit(1)
-
-        self.soc.listen(5)
-        print("Socket listening")
-
-        while True:
-            try:
-                self.socOb, self.addr = self.soc.accept()
-                print(f"Connection from {self.addr}")
-                self.handle_client()
-            except socket.error as e:
-                print(f"Error during connection: {e}")
-                continue  # Handle connection errors gracefully
-
-    def handle_client(self):
-        """ Handles client communication. """
-        client_data = self.receiveData()
-        if client_data:
-            self.checkCommand(client_data)
-        else:
-            print("No data received from the client.")
-
-    def sendData(self, data):
-        """ Sends data to the connected client. """
+    
+    def sendData(self,data):
+                """ Sends data to the connected client. """
         try:
             self.socOb.send(data.encode())
             self.tennis = True
@@ -54,7 +14,7 @@ class Server:
             print(f"Error sending data: {e}")
 
     def receiveData(self):
-        """ Receives data from the connected client. """
+               """ Receives data from the connected client. """
         try:
             receiveData = self.socOb.recv(1024).decode()
             if receiveData:
@@ -64,44 +24,66 @@ class Server:
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
+    
+    def operation(self, operat):
+        if operat == "NICK":
+            self.NICK()
+        elif operat == "USER":
+            self.USER()
+        elif operat == "PONG":
+            pass
+        elif operat == "QUIT":
+            pass
+        elif operat == "JOIN":
+            pass
+        else:
+            print("unknown command")
+    
 
     def checkCommand(self, data):
-        """ Checks the command received from the client. """
+        # do regex in here to check commands match the correct formats. 
         sections = data.split()
-        
-        if len(sections) < 2:
-            self.sendData("ERROR: Insufficient command parameters.")
-            return
+        print("checking")
+        print(sections)
 
-        command = sections[0]
-        nickname = sections[1] if len(sections) > 1 else None
-
-        try:
-            match command:
+        for s in sections:
+            match s:
                 case "NICK":
-                    self.handle_nick(nickname)
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
 
+                    temp = ["NICK"]
+                    
                 case "USER":
-                    if self.temp is None:
-                        raise ValueError("User must set a nickname before using USER command.")
-                    # Handle USER command logic here
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
+
+                    temp = ["USER"]
 
                 case "PONG":
-                    # Handle PONG logic here
-                    pass
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
 
+                    temp = ["PONG"]
+                
                 case "JOIN":
-                    print("Asked to join", sections[1])
+                    try: 
+                        self.operation(temp[0])
+                    except:
+                        pass
 
-                case _:
-                    self.sendData(f"ERROR: Unknown command '{command}'")
+                    print("Asked to join ", sections[1])
+                
+            temp.append[s]
 
-        except ValueError as ve:
-            print(f"Nickname error: {ve}")
-            self.sendData(f"ERROR: {ve}")  # Notify the client of the error
 
-    def handle_nick(self, nickname):
-        """ Handles the NICK command and validates the nickname. """
+    def NICK(self):
         if not nickname:
             raise ValueError("No nickname provided.")
         if len(nickname) < 3 or len(nickname) > 15:
@@ -118,18 +100,91 @@ class Server:
         self.sendData(welcome_message)
         print(f"Nickname set to: {nickname}")
 
-class Client:
-    def __init__(self, NICK):
-        self.NICK = NICK
-        self.USER = [None] * 4  # Initialize user array with None
+    def USER(self):
+                """ Handles client communication. """
+        client_data = self.receiveData()
+        if client_data:
+            self.checkCommand(client_data)
+        else:
+            print("No data received from the client.")
 
-    def setUser(self, USERarr):
+    def JOIN(self):
+        pass
+
+    def PING(self):
+        pass
+
+    def main(self):
+        self.timeFirst = time.time()
+        if not self.tennis and self.timeDifference > 60:
+            self.sendData("PING %s" %(self.clients[0]))
+            pass
+        elif self.tennis == False:
+            self.timeDifference = self.timeFirst - time.time()
+        
+        port = 6667
+        self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        self.soc.bind(('',port))
+        print("Socket binded to %d" %(port))
+
+        self.soc.listen(5)
+        print("Socket listening")
+
+        while True:
+            readable = [self.soc]
+            writeable = []
+            errable = []
+
+            read, write, e = select.select(readable, writeable, errable,1.0)
+            if read:
+                self.socOb, self.addr = self.soc.accept()
+                self.checkCommand(self.receiveData())
+            elif write:
+                self.checkCommand(self.receiveData())
+            else:
+                print("Check")
+
+            
+            #print("Connecting from %s" %(self.addr))
+            #print(self.receiveData())
+            #self.sendData("Thanks for connecting")
+            #self.checkCommand(self.receiveData())
+
+            self.tennis = False
+
+    def __init__(self):
+        self.tennis = False
+        self.timeDifference = 0
+        self.timeFirst = time.time()
+        #self.checkCommand("NICK * edwardFoster")
+        self.channels = {} # will be dictionary of channel classes with key as channel name and value as class
+        self.clients = {} # will be dictionary of users in the server, key as NICK and value of client class
+        self.main()
+
+
+class Client:
+
+    def setNick(self):
+        pass
+
+    def setUser(self, USERarr:list[str, str, str, str]):
         self.USER = USERarr
+
+    def __init__(self):
+        self.NICK = ""
+        self.USER = [None,None,None,None]
+
+    def __init__(self,NICK):
+        self.NICK = NICK
+        self.USER = [None,None,None,None]
+
+
+
+
 
 class Channel:
     def __init__(self):
-        self.clients = {}  # Dictionary of users in the channel
+        self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
 
-# Start the server
 if __name__ == "__main__":
     test = Server()
