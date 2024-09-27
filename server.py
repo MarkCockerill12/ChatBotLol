@@ -5,7 +5,7 @@ import time
 class Server:
     
     def sendData(self,data):
-                """ Sends data to the connected client. """
+        """ Sends data to the connected client. """
         try:
             self.socOb.send(data.encode())
             self.tennis = True
@@ -14,7 +14,7 @@ class Server:
             print(f"Error sending data: {e}")
 
     def receiveData(self):
-               """ Receives data from the connected client. """
+        """ Receives data from the connected client. """
         try:
             receiveData = self.socOb.recv(1024).decode()
             if receiveData:
@@ -83,7 +83,7 @@ class Server:
             temp.append[s]
 
 
-    def NICK(self):
+    def NICK(self,nickname):
         if not nickname:
             raise ValueError("No nickname provided.")
         if len(nickname) < 3 or len(nickname) > 15:
@@ -101,26 +101,40 @@ class Server:
         print(f"Nickname set to: {nickname}")
 
     def USER(self):
-                """ Handles client communication. """
+        """ Handles client communication. """
         client_data = self.receiveData()
         if client_data:
             self.checkCommand(client_data)
         else:
             print("No data received from the client.")
 
-    def JOIN(self):
-        pass
+    def JOIN(self, channel):
+        """ Handles join command. """
+        if not channel:
+            raise ValueError("No channel provided.")
+        if channel not in self.channels:
+            self.channels[channel] = Channel()
+        self.channels[channel].clients[self.temp] = self.clients[self.temp]
+        print(f"{self.temp} has joined {channel}")
 
     def PING(self):
-        pass
-
-    def main(self):
+        """ Handles PING command. """
+        self.sendData("PONG")
         self.timeFirst = time.time()
         if not self.tennis and self.timeDifference > 60:
             self.sendData("PING %s" %(self.clients[0]))
             pass
         elif self.tennis == False:
             self.timeDifference = self.timeFirst - time.time()
+            print("PING sent")
+
+    def PONG(self):
+        """ Handles PONG command. """
+        self.timeDifference = self.timeFirst - time.time()
+        print("PONG received")
+
+    def main(self):
+
         
         port = 6667
         self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
