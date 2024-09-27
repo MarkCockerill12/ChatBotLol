@@ -166,19 +166,33 @@ class Server:
         
 
 
-    def JOIN(self):
-        pass
+    def JOIN(self, channel):
+        """ Handles join command. """
+        if not channel:
+            raise ValueError("No channel provided.")
+        if channel not in self.channels:
+            self.channels[channel] = Channel()
+        self.channels[channel].clients[self.temp] = self.clients[self.temp]
+        print(f"{self.temp} has joined {channel}")
 
     def PING(self):
-        pass
-
-    def main(self):
+        """ Handles PING command. """
+        self.sendData("PONG")
         self.timeFirst = time.time()
         if not self.tennis and self.timeDifference > 60:
             self.sendData("PING %s" %(self.clients[0]))
             pass
         elif self.tennis == False:
             self.timeDifference = self.timeFirst - time.time()
+            print("PING sent")
+
+    def PONG(self):
+        """ Handles PONG command. """
+        self.timeDifference = self.timeFirst - time.time()
+        print("PONG received")
+
+    def main(self):
+
         
         port = 6667
         self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
