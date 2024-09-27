@@ -5,22 +5,25 @@ import time
 class Server:
     
     def sendData(self,data):
-        self.checkCommand(data)
-        self.socOb.send(data.encode())
-
-        self.tennis = True
-        self.timeFirst = time.time()
+                """ Sends data to the connected client. """
+        try:
+            self.socOb.send(data.encode())
+            self.tennis = True
+            self.timeFirst = time.time()
+        except socket.error as e:
+            print(f"Error sending data: {e}")
 
     def receiveData(self):
-        
-        receiveData = ""
-        while True: 
+               """ Receives data from the connected client. """
+        try:
             receiveData = self.socOb.recv(1024).decode()
             if receiveData:
                 self.tennis = True
                 self.timeFirst = time.time()
                 return receiveData
-            else: return None
+        except socket.error as e:
+            print(f"Error receiving data: {e}")
+            return None  # Return None on error
     
     def operation(self, operat):
         if operat == "NICK":
@@ -81,10 +84,29 @@ class Server:
 
 
     def NICK(self):
-        pass
+        if not nickname:
+            raise ValueError("No nickname provided.")
+        if len(nickname) < 3 or len(nickname) > 15:
+            raise ValueError("Nickname must be between 3 and 15 characters.")
+        if not nickname.isalnum():
+            raise ValueError("Nickname can only contain alphanumeric characters.")
+        if nickname in self.clients:
+            raise ValueError(f"Nickname '{nickname}' is already taken. Please choose another.")
+
+        # Add client to the dictionary
+        self.clients[nickname] = Client(nickname)
+        self.temp = nickname
+        welcome_message = f"Welcome, {nickname}!"
+        self.sendData(welcome_message)
+        print(f"Nickname set to: {nickname}")
 
     def USER(self):
-        pass
+                """ Handles client communication. """
+        client_data = self.receiveData()
+        if client_data:
+            self.checkCommand(client_data)
+        else:
+            print("No data received from the client.")
 
     def JOIN(self):
         pass
@@ -164,6 +186,5 @@ class Channel:
     def __init__(self):
         self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
 
-
-
-test = Server()
+if __name__ == "__main__":
+    test = Server()
