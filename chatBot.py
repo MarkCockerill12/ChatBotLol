@@ -103,18 +103,18 @@ class Bot:
 
         elif message.strip().lower() == "!savedata":
             if self.channel in self.channel_info:
-                response = f"Stored channel information: {self.channel_info[channel]}"
+                response = f"Stored channel information: {self.channel_info[self.channel]}"
                 self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                 print(f"Responded to {sender}: {response}")
             
             else:
                 response = "No channel information saved yet."
-                self.s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+                self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                 print(f"Responded to {sender}: {response}")
 
         else:
             response = f"You're so right, {sender}! You're so amazing!"
-            self.s.send(f"PRIVMSG {channel} :{response}\r\n".encode('utf-8'))
+            self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
             print(f"Responded to {sender}: {response}")
 
     
