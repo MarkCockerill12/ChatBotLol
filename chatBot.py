@@ -101,61 +101,74 @@ class Bot:
             joke = random.choice(self.jokes)
             self.s.send(f"PRIVMSG {sender} :{joke}\r\n".encode('utf-8'))  # Send joke back to sender
             print(f"Sent a joke to {sender}: {joke}")
+        
         elif message.startswith(self.command_prefix):  # If it's a command
             # Process commands as usual
             parts = message[len(self.command_prefix):].strip().split()
             command = parts[0].lower()  # First part is the command
             args = parts[1:]  # Remaining parts are arguments (if any)
+            
+            match command:
+                case "quit":
+                    response = f"Alright, see ya, {sender}!"
+                    self.send_message(response)
+                    self.Connected = False
+                    print("Quitting...")
+                    self.shutdown()
 
-            if command == "quit":
-                response = f"Alright, see ya, {sender}!"
-                self.send_message(response)
-                self.Connected = False
-                print("Quitting...")
-                self.shutdown()
+                case "hello":
+                    response = f"Hello, {sender}!"
+                    self.send_message(response)
 
-            elif command == "hello":
-                response = f"Hello, {sender}!"
-                self.send_message(response)
+                case "help":
+                    response = "!hello - I will say hello back to you. !quit - I will say goodbye and leave the channel. !savedata - I will show you the stored channel information. !privmsg <user> <message> - Send a private message to a user."
+                    self.send_message(response)
 
-            elif command == "help":
-                response = "!hello - I will say hello back to you. !quit - I will say goodbye and leave the channel. !savedata - I will show you the stored channel information. !privmsg <user> <message> - Send a private message to a user."
-                self.send_message(response)
-
-            elif command == "savedata":
-                if self.channel in self.channel_info:
-                    response = f"Stored channel information: {self.channel_info[self.channel]}"
-                else:
-                    response = "No channel information saved yet."
-                self.send_message(response)
-
-            elif command == "privmsg":
-                # Handle the privmsg command, requires at least one argument (the user)
-                if len(args) > 1:
-                    user = args[0]  # The first argument is the user
-                    priv_message = ' '.join(args[1:])  # The rest of the arguments form the message
-                    response = f"Private message to {user}: {priv_message}"
-                    self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
-                    print(f"Sent private message to {user}: {priv_message}")
-                else:
-                    self.send_message("Usage: !privmsg <user> <message>")
-
-            elif command == "slap":
-                # Handle the slap command, requires at least one argument (the recipient).
-                if len(args) >= 1:
-                    user = args[0]
-                    if user.lower() == self.nick.lower() or user.lower() == sender.lower():
-                        response = "I can't slap myself or the sender!"
+                case "savedata":
+                    if self.channel in self.channel_info:
+                        response = f"Stored channel information: {self.channel_info[self.channel]}"
                     else:
-                        response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"  # IRC action format
-                    self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
-                    print(f"Sent slap action for {user}")
-                else:
-                    self.send_message("Usage: !slap <user>")
+                        response = "No channel information saved yet."
+                    self.send_message(response)
 
-            else:
-                response = f"Unknown command, {sender}. Try !help for a list of commands."
-                self.send_message(response)
+                case "privmsg":
+                    # Handle the privmsg command, requires at least one argument (the user)
+                    if len(args) > 1:
+                        user = args[0]  # The first argument is the user
+                        priv_message = ' '.join(args[1:])  # The rest of the arguments form the message
+                        response = f"Private message to {user}: {priv_message}"
+                        self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
+                        print(f"Sent private message to {user}: {priv_message}")
+                    else:
+                        self.send_message("Usage: !privmsg <user> <message>")
+                
+                case "slap":
+                    # Handle the slap command, requires at least one argument (the recipient).
+                    if len(args) >= 1:
+                        user = args[0]
+                        if user.lower() == self.nick.lower() or user.lower() == sender.lower():
+                            response = "I can't slap myself or the sender!"
+                        
+                        #else:
+                            #Input validation to check if slap victim is a user in user list
+                            #self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
+
+
+    
+                            #if user.lower() 
+                                response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"  # IRC action format
+                            #else:
+                                response = f"\x01ACTION slaps {sender.lower*()} because {user} is not a user in the server"
+                        
+                        self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
+                        print(f"Sent slap action for {user}")
+                    else:
+                        self.send_message("Usage: !slap <user>")
+                
+                case _:
+                    response = f"Unknown command, {sender}. Try !help for a list of commands."
+                    self.send_message(response)
+
         else:
             # Handle non-command messages sent to the channel
             if target.lower() == self.channel.lower():  # Ensure we're only responding to channel messages
