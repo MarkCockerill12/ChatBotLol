@@ -1,6 +1,7 @@
 import socket
 import time
 import random
+import re
 
 # Bot Class
 class Bot: 
@@ -21,6 +22,7 @@ class Bot:
             "Why do Java developers wear glasses? Because they don’t see sharp.",
             "Why did the developer go broke? Because they used up all their cache.",
             "I told my computer I needed a break, and now it won’t stop sending me KitKats!"
+            "hawk tuah"
         ]
 
     def connect(self):
@@ -149,19 +151,21 @@ class Bot:
                         if user.lower() == self.nick.lower() or user.lower() == sender.lower():
                             response = "I can't slap myself or the sender!"
                         
-                        #else:
+                        else:
                             #Input validation to check if slap victim is a user in user list
-                            #self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
+                            self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
 
-
+                            user_list = self.user_search()
     
-                            #if user.lower() 
-                                response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"  # IRC action format
-                            #else:
-                                response = f"\x01ACTION slaps {sender.lower*()} because {user} is not a user in the server"
+                            if user.lower() in [u.lower() for u in user_list]:
+                                 response = f"\x01ACTION slaps {user} around a bit with a large trout\x01" 
+                            else:
+                                response = f"\x01ACTION slaps {sender} because {user} is not a user in the server\x01"
                         
                         self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                         print(f"Sent slap action for {user}")
+                    
+                    
                     else:
                         self.send_message("Usage: !slap <user>")
                 
@@ -182,6 +186,29 @@ class Bot:
             print("Connection closed.")
         except Exception as e:
             print(f"Error while closing socket: {e}")
+
+    def user_search(self):
+        user_list = []
+
+        while True:
+            data = self.s.recv(2048).decode('utf-8')
+
+            #search parameters need refining maybe
+            #Basically it searches for 353 in data as it comes before the list of names then it recieves and then reads in all the data after the : 
+            match = re.search(r"353 .* = .* :(.*)", data)
+
+            if match:
+                # Extract the list of users and split them into a list
+                users = match.group(1).split()
+                user_list.extend(users)
+                
+                
+          # 366 code indicates the end of the NAMES list
+            if ' 366 ' in data:
+                break  # End of user list
+            
+        return user_list
+
 
 # Main function
 def main():
