@@ -13,17 +13,7 @@ class Bot:
         self.channel_info = {}
         self.Connected = False
         self.s = None
-        self.command_prefix = "!"  # Define your command prefix here
-
-        # Initialize jokes list here
-        self.jokes = [
-            "Why don't programmers like nature? It has too many bugs.",
-            "How many programmers does it take to change a light bulb? None, that's a hardware problem.",
-            "Why do Java developers wear glasses? Because they don’t see sharp.",
-            "Why did the developer go broke? Because they used up all their cache.",
-            "I told my computer I needed a break, and now it won’t stop sending me KitKats!"
-            "hawk tuah"
-        ]
+        self.command_prefix = "!"
 
     def connect(self):
         try:
@@ -90,28 +80,14 @@ class Bot:
             print(f"Error while sending message: {e}")
 
     def handle_privmsg(self, data):
-        # Extract sender, target and message
+        # Extract sender, target, and message
         sender = data.split('!', 1)[0][1:]  # Extracts the sender (e.g., username)
         target = data.split('PRIVMSG', 1)[1].split(':', 1)[0].strip()  # The target (could be the bot's nick or a channel)
         message = data.split('PRIVMSG', 1)[1].split(':', 1)[1].strip()  # The message itself
 
         print(f"Message from {sender} to {target}: {message}")
 
-        # Check if the message is a private message directed to the bot
-        if target.lower() == self.nick.lower():  # Check if the message is directed to the bot
-            
-            # Respond with a random joke for private messages
-            readjoke = open("jokes.txt", "r") 
-            data = readjoke.read()
-            
-            jokes = data.splitlines("\n") 
-
-            joke = random.choice(self.jokes)
-            self.s.send(f"PRIVMSG {sender} :{joke}\r\n".encode('utf-8'))  # Send joke back to sender
-            print(f"Sent a joke to {sender}: {joke}")
-
-        
-        elif message.startswith(self.command_prefix):  # If it's a command
+        if message.startswith(self.command_prefix):  # If it's a command
             # Process commands as usual
             parts = message[len(self.command_prefix):].strip().split()
             command = parts[0].lower()  # First part is the command
@@ -148,34 +124,41 @@ class Bot:
                         response = f"Private message to {user}: {priv_message}"
                         self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
                         print(f"Sent private message to {user}: {priv_message}")
+                        # Check if the message is a private message directed to the bot
+                        if user.lower() == self.nick.lower():  # Check if the message is directed to the bot
+                            
+                            # Respond with a random joke for private messages
+                            with open("jokes.txt", "r") as readjoke:
+                                jokedata = readjoke.read().splitlines()
+                            
+                            joke = random.choice(jokedata)  # Corrected joke selection
+                            self.s.send(f"PRIVMSG {sender} :{joke}\r\n".encode('utf-8'))  # Send joke back to sender
+                            print(f"Sent a joke to {sender}: {joke}")
                     else:
                         self.send_message("Usage: !privmsg <user> <message>")
-                
+
                 case "slap":
                     # Handle the slap command, requires at least one argument (the recipient).
                     if len(args) >= 1:
                         user = args[0]
                         if user.lower() == self.nick.lower() or user.lower() == sender.lower():
                             response = "I can't slap myself or the sender!"
-                        
                         else:
                             # Input validation to check if slap victim is a user in user list
                             self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
 
                             user_list = self.user_search()
-    
+
                             if user.lower() in [u.lower() for u in user_list]:
-                                 response = f"\x01ACTION slaps {user} around a bit with a large trout\x01" 
+                                response = f"\x01ACTION slaps {user} around a bit with a large trout\x01" 
                             else:
                                 response = f"\x01ACTION slaps {sender} because {user} is not a user in the server\x01"
                         
                         self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                         print(f"Sent slap action for {user}")
-                    
-                    
                     else:
                         self.send_message("Usage: !slap <user>")
-                
+
                 case _:
                     response = f"Unknown command, {sender}. Try !help for a list of commands."
                     self.send_message(response)
@@ -200,27 +183,21 @@ class Bot:
         while True:
             data = self.s.recv(2048).decode('utf-8')
 
-            #search parameters need refining maybe
-            #Basically it searches for 353 in data as it comes before the list of names then it recieves and then reads in all the data after the : 
             match = re.search(r"353 .* = .* :(.*)", data)
 
             if match:
-                # Extract the list of users and split them into a list
                 users = match.group(1).split()
                 user_list.extend(users)
                 
-                
-          # 366 code indicates the end of the NAMES list
-            if ' 366 ' in data:
-                break  # End of user list
-            
+            if ' 366 ' in data:  # 366 code indicates end of user list
+                break
+        
         return user_list
 
 
 # Main function
 def main():
     if __name__ == "__main__":
-        # Welcome message
         print("  ________  ___  ___  ________  _________        ________  ________  _________   ")
         print(" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
         print(" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
