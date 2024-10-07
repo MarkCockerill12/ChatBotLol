@@ -172,10 +172,11 @@ class Bot:
                         self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
 
                         user_list = self.user_search()
+                        #Checks to see if the sender and the bot are the only users in the channel
                         if len(list(user_list)) <= 2:
                             response = "There is no valid target to slap because only me and the sender exist in the channel"
                         else:
-                            
+                            #Selects a random user from the user list excluding the bot and the sender
                             target = random.choice([u.lower() for u in user_list 
                                                     if u.lower() != self.nick.lower() and u.lower() != sender.lower()])
                             response = f"\x01ACTION slaps {target} around a bit with a large trout\x01" 
