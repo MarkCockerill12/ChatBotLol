@@ -1,6 +1,8 @@
 import socket
 import select
 import time
+import sys
+
 
 class Client:
 
@@ -8,11 +10,18 @@ class Client:
         self.NICK = nickName
         self.permissions = permissions
         self.realname = realName
-        print("x")
+
+    def upadateNick(self, nickName):
+        self.NICK = nickName
+
+    def getNick(self):
+        return self.NICK
+
+    def getTennis(self):
+        return ping
 
     def setUser(self, USERarr:list[str, str, str]):
         self.USER = USERarr
-        print("a")
 
     def setSocketObj(self, socketObject):
         self._ownSocketObj = socketObject
@@ -20,13 +29,21 @@ class Client:
     def getSocketObj(self):
         return self._ownSocketObj
 
+    def sendData(self,data):
+        self._ownSocketObj.sendall(bytes(data))
+    
+    def setTennis(self, b:bool):
+        self.ping = b
+
     def __init__(self):
+        self.ping = False
         self.NICK = ""
         self.USER = [None,None,None]
         self.realname = ""
         self._ownSocketObj = None
 
     def __init__(self,NICK):
+        self.ping = False
         self.NICK = NICK
         self.USER = [None,None,None]
         self.realname = ""
@@ -40,131 +57,144 @@ class Client:
 class Channel:
     def __init__(self):
         self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
+    
+    def addClient(self, client):
+        self.clients[client.getNick()] = client
+
+    def removeClient(self, client):
+        removedClient = self.clients.pop(client.getNick())
+        return removedClient
 
 
 class Server:
     
-    def sendData(self,data):
+    def sendData(self, data, client:Client):
         try:
             print("attempt to send")
+            client.sendData(data)
+            client.setTennis(True)
 
-            self.socOb.sendall(bytes(data, 'utf-8'))
-
-            self.tennis = True
-            self.timeFirst = time.time()
         except socket.error as e:
             print(f"Error sending data: {e}")
 
-    def receiveData(self, readable:list[socket]):
-        try:            
-            r, w, e = select.select(readable, [], [], 1.0)
-            if r:
-                receiveData = readable[0].recv(1024).decode()
-                if receiveData:
-                    self.tennis = True
-                    self.timeFirst = time.time()
-                    return receiveData
-            else:
-                print("Read time out")
-                return None
+    def receiveData(self, readable:socket.socket):
+        try:           
+            receiveData = readable.recv(1024).decode()
+            if receiveData:
+                self.tennis = True
+                self.timeFirst = time.time()
+                return receiveData
                 
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
     
     def operation(self, command):
+
+        #error codes:
+        #NICK: ERR_NONICKNAMEGIVEN, ERR_ERRONEUSNICKNAME, ERR_NICKNAMEINUSE
+        #USER: ERR_NEEDMOREPARAMS, ERR_ALREADYREGISTRED, ERR_TOOMANYARGUMENTS
+        #JOIN: ERR_NEEDMOREPARAMS
+        #PING: ERR_NOORIGIN
+        #QUIT: ERR_NOORIGIN
+
         if command[0] == "NICK":
+            if len(command[1]) > 15 or len(command[1]) < 3:
+                print("1")
+                return "ERR_ERRONEUSNICKNAME"
+            elif command[1] in self.clients:
+                print("2")
+                return "ERR_NICKNAMEINUSE"
             self.NICK(command[1])
+            
         elif command[0] == "USER":
-            self.USER(command[1], command[2], command[4])
+            if command[2][0] != ":":
+                print("Real name must start with a colon")
+                return "ERR_INCORRECTFORMAT"
+
+            self.USER(command[1], command[2])
+
         elif command[0] == "PONG":
             pass
         elif command[0] == "QUIT":
-            pass
+            if command[1][0] != ":":
+                return "ERR_INCORRECTFORMAT"
+            
+            self.QUIT()
+
         elif command[0] == "JOIN":
-            print("join")
+            if not command[1]:
+                return "NOTICE %s:No channel provided"%(command[1])
+            elif self.channels[command[1]]:
+                self.JOIN(command[1])
+            else:
+                self.channels[command[1]] = Channel()
+                self.JOIN(command[1])
+                return 0
+
         else:
             print("unknown command")
     
 
     def checkCommand(self, data):
-        # do regex in here to check commands match the correct formats. 
         if not data:
             return
         
         sections = data.split()
         print(sections)
         temp = []
+        response = None
 
         for s in sections:
-            match s:
-                case "NICK":
-                    try: 
-                        self.operation(temp)
-                    except:
-                        pass
+            if s == "NICK":
+                try:
+                    index = sections.index(s)
+                    temp = [sections[index], sections[index+1]]
+                    self.operation(temp)
+                except IndexError as e:
+                    print(e)
+                    response = "ERR_NEEDMOREPARAMS"
 
-                    temp = []
-                    
-                case "USER":
-                    try: 
-                        self.operation(temp)
-                    except:
-                        pass
-
-                    temp = []
-
-                case "PONG":
-                    try: 
-                        self.operation(temp)
-                    except:
-                        pass
-
-                    temp = []
+            elif s == "USER":
+                index = sections.index(s)
+                if len(sections[index:]) > 5:
+                    return "ERR_TOOMANYARGUMENTS"
                 
-                case "JOIN":
-                    try: 
-                        self.operation(temp)
-                    except:
-                        pass
-                    temp = []
+                try:
+                    
+                    temp = [sections[index], sections[index+1], sections[index+4]]
+                    self.operation(temp)
 
-            temp.append(s)
-        try: 
-            self.operation(temp)
-        except:
-            pass
+                except IndexError as e:
+                    print(e)
+                    response = "ERR_NEEDMOREPARAMS"
 
+            if response:
+               return response
+            
+    def QUIT(self):
+        removedClient = self.clients.pop(self.currentClient.getNick())
+        removedClient.getSocketObj().close()
 
-    def NICK(self, nickname):
+    def NICK(self, nickname:str):
+        if self.newClient:
+            # Add client to the dictionary
+            self.clients[nickname] = Client(nickname)
+            self.clients.pop(self.tempClient.getNick())
+            self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
+            self.tempClient.setSocketObj(None)
 
-        if not nickname:
-            raise ValueError("No nickname provided.")
-        if len(nickname) < 3 or len(nickname) > 15:
-            raise ValueError("Nickname must be between 3 and 15 characters.")
-        if not nickname.isalnum():
-            raise ValueError("Nickname can only contain alphanumeric characters.")
-        if nickname in self.clients:
-            raise ValueError(f"Nickname '{nickname}' is already taken. Please choose another.")
-
-        # Add client to the dictionary
-        self.clients[nickname] = Client(nickname)
-        self.temp = nickname
-        welcome_message = f"Welcome, {nickname}!"
-        self.sendData(welcome_message)
-        print(f"Nickname set to: {nickname}")
-
-    def USER(self, username:str, permission:str, realname:str):
-        if realname[0] != ":":
-            return 0
-        permissions = permission.split()
-        for p in permissions:
-            permissions[permissions.index(p)] = int(p)
-        name = realname.strip(":")
-
-        self.clients[username].setUser([username, permissions, name]) 
+            self.clients[nickname].upadateNick(nickname)
+            welcome_message = "CAP * LS :"
+            self.sendData(welcome_message, self.clients[nickname])
+            print(f"Nickname set to: {nickname}")
         
+        else:
+            self.clients[self.client].upadateNick(nickname)
+            self.clients[nickname] = self.clients.pop(self.client)
 
+    def USER(self, username:str, realname:str): # as host name and server name are not used for this project, they are ignored.
+        self.clients[username].setUser([username, realname[1:]]) 
 
     def JOIN(self, channel):
         """ Handles join command. """
@@ -177,7 +207,6 @@ class Server:
 
     def PING(self):
         """ Handles PING command. """
-        self.sendData("PONG")
         self.timeFirst = time.time()
         if not self.tennis and self.timeDifference > 60:
             self.sendData("PING %s" %(self.clients[0]))
@@ -191,9 +220,14 @@ class Server:
         self.timeDifference = self.timeFirst - time.time()
         print("PONG received")
 
+    def addClientToReadableList(self):
+        readable = []
+        for client in self.clients.values():
+            readable.append(client.getSocketObj()) # In same order as clients dictionary
+        return readable
+
     def main(self):
 
-        
         port = 6667
         self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         self.soc.bind(('',port))
@@ -201,30 +235,55 @@ class Server:
 
         self.soc.listen(5)
         print("Socket listening")
-        readable = [self.soc]
+        
+        readable = []
         writable = []
-        tempSocketObject = []
-        index = 0
+        self.tempSocketObject = []
+        response = None
+        
         while True:
-            readConnection, readCommand, e = select.select(readable, writable, [],1.0)
+            readable.clear()
+            readable.append(self.soc)
+            readable.extend(self.addClientToReadableList())
 
-            if readConnection:
-                tempSocketObject = self.soc.accept() #connecting client to server
-                time.sleep(0.2)                
-                self.checkCommand(self.receiveData([tempSocketObject[0]]))
-                tempArr = []
-                for client in self.clients.values():
-                    tempArr.append(client)
-                tempArr[index].setSocketObj(tempSocketObject[0])
-                # [index].setSocketObj(tempSocketObject[0])
-
-            else:
-                if self.clients:
-                    for client in self.clients.values():
-                        tempSocketObject = [client.getSocketObj()]
-                        self.checkCommand(self.receiveData([tempSocketObject[0]]))
+            readConnection, readCommand, e = select.select(readable, writable, [], 1.0)
             
-            self.tennis = False
+            for con in readConnection:
+                if con is self.soc: # Adds new client to the server
+                    self.newClient = True
+                    self.tempSocketObject = con.accept()
+                    self.tempClient = Client("temp")
+                    self.tempClient.setSocketObj(self.tempSocketObject[0])
+                    currentClient = self.tempClient.getNick()
+                    self.clients[currentClient] = self.tempClient
+                    response = self.checkCommand(self.receiveData(self.tempSocketObject[0]))
+
+                else: # Checks for commands from existing clients
+                    self.newClient = False
+                    for client in self.clients.values():
+                        if con == client.getSocketObj():
+                            self.client = client.getNick()
+                            currentClient = client.getNick()
+                            break
+                    response = self.checkCommand(self.receiveData(con))
+                try:
+                    match response:
+                        case "ERR_ERRONEUSNICKNAME":
+                            response = ":%s :Erroneus nickname" %(self.tempClient.getNick())
+                        case "ERR_NICKNAMEINUSE":
+                            response = ":%s :Nickname is already in use" %(self.tempClient.getNick())
+                        case "ERR_NEEDMOREPARAMS":
+                            response = ":%s :Not enough parameters" %(self.tempClient.getNick())
+                        case "ERR_TOOMANYARGUMENTS":
+                            response = ":%s :Too many arguments" %(self.tempClient.getNick())
+                        case "ERR_INCORRECTFORMAT":
+                            response = ":%s :Incorrect format" %(self.tempClient.getNick())
+
+                    self.sendData(response, currentClient)
+                except:
+                    pass
+
+                self.tennis = False
 
     def __init__(self):
         self.tennis = False
