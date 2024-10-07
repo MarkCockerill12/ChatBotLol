@@ -87,7 +87,16 @@ class Bot:
 
         print(f"Message from {sender} to {target}: {message}")
 
-        if message.startswith(self.command_prefix):  # If it's a command
+        if target.lower() == self.nick.lower():  
+            with open("jokes.txt", "r") as readjoke:
+                jokedata = readjoke.read().splitlines()
+                                
+                joke = random.choice(jokedata)  # Corrected joke selection
+                self.s.send(f"PRIVMSG {sender} :{joke}\r\n".encode('utf-8'))  # Send joke back to sender
+                print(f"Sent a joke to {sender}: {joke}")
+
+
+        elif message.startswith(self.command_prefix):  # If it's a command
             # Process commands as usual
             parts = message[len(self.command_prefix):].strip().split()
             command = parts[0].lower()  # First part is the command
@@ -122,18 +131,19 @@ class Bot:
                         user = args[0]  # The first argument is the user
                         priv_message = ' '.join(args[1:])  # The rest of the arguments form the message
                         response = f"Private message to {user}: {priv_message}"
-                        self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
-                        print(f"Sent private message to {user}: {priv_message}")
+                        
                         # Check if the message is a private message directed to the bot
+
                         if user.lower() == self.nick.lower():  # Check if the message is directed to the bot
-                            
-                            # Respond with a random joke for private messages
-                            with open("jokes.txt", "r") as readjoke:
-                                jokedata = readjoke.read().splitlines()
-                            
-                            joke = random.choice(jokedata)  # Corrected joke selection
-                            self.s.send(f"PRIVMSG {sender} :{joke}\r\n".encode('utf-8'))  # Send joke back to sender
-                            print(f"Sent a joke to {sender}: {joke}")
+                           response = "I can't send private messages to myself!"
+                           self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
+
+                        else: 
+                            response = f"Private message to {user}: {priv_message}"
+                            self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
+                            print(f"Sent private message to {user}: {priv_message}")
+
+
                     else:
                         self.send_message("Usage: !privmsg <user> <message>")
 
@@ -148,6 +158,7 @@ class Bot:
                             self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
 
                             user_list = self.user_search()
+                            print(type(user_list))
 
                             if user.lower() in [u.lower() for u in user_list]:
                                 response = f"\x01ACTION slaps {user} around a bit with a large trout\x01" 
@@ -157,7 +168,22 @@ class Bot:
                         self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                         print(f"Sent slap action for {user}")
                     else:
-                        self.send_message("Usage: !slap <user>")
+                        # Input validation to check if slap victim is a user in user list
+                        self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
+
+                        user_list = self.user_search()
+                        if len(list(user_list)) <= 2:
+                            response = "There is no valid target to slap because only me and the sender exist in the channel"
+                        else:
+                            
+                            target = random.choice([u.lower() for u in user_list 
+                                                    if u.lower() != self.nick.lower() and u.lower() != sender.lower()])
+                            response = f"\x01ACTION slaps {target} around a bit with a large trout\x01" 
+                            
+                        print(f"Sent slap action for {target}") 
+
+                    self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
+                                                   
 
                 case _:
                     response = f"Unknown command, {sender}. Try !help for a list of commands."
