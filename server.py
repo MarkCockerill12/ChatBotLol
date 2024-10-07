@@ -10,18 +10,18 @@ class Client:
         self.NICK = nickName
         self.permissions = permissions
         self.realname = realName
-        print("x")
 
     def upadateNick(self, nickName):
         self.NICK = nickName
 
     def getNick(self):
         return self.NICK
-        
+
+    def getTennis(self):
+        return ping
 
     def setUser(self, USERarr:list[str, str, str]):
         self.USER = USERarr
-        print("a")
 
     def setSocketObj(self, socketObject):
         self._ownSocketObj = socketObject
@@ -29,13 +29,21 @@ class Client:
     def getSocketObj(self):
         return self._ownSocketObj
 
+    def sendData(self,data):
+        self._ownSocketObj.sendall(bytes(data))
+    
+    def setTennis(self, b:bool):
+        self.ping = b
+
     def __init__(self):
+        self.ping = False
         self.NICK = ""
         self.USER = [None,None,None]
         self.realname = ""
         self._ownSocketObj = None
 
     def __init__(self,NICK):
+        self.ping = False
         self.NICK = NICK
         self.USER = [None,None,None]
         self.realname = ""
@@ -49,22 +57,23 @@ class Client:
 class Channel:
     def __init__(self):
         self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
+    
+    def addClient(self, client):
+        self.clients[client.getNick()] = client
+
+    def removeClient(self, client):
+        removedClient = self.clients.pop(client.getNick())
+        return removedClient
 
 
 class Server:
     
-    def sendData(self,data ,soc):
+    def sendData(self, data, client:Client):
         try:
             print("attempt to send")
-            # if code == "PING":
-            #     message = "PING %s"%(client)
-            # else:
-            #     message = ":%"
+            client.sendData(data)
+            client.setTennis(True)
 
-            soc.sendall(bytes(data, 'utf-8'))
-            #soc.sendall(bytes(":Bears-Laptop 001 EdFoster :Hi, welcom to server", 'utf-8'))
-            self.tennis = True
-            self.timeFirst = time.time()
         except socket.error as e:
             print(f"Error sending data: {e}")
 
@@ -75,9 +84,6 @@ class Server:
                 self.tennis = True
                 self.timeFirst = time.time()
                 return receiveData
-            else:
-                print("Read time out")
-                return None
                 
         except socket.error as e:
             print(f"Error receiving data: {e}")
@@ -111,7 +117,11 @@ class Server:
         elif command[0] == "PONG":
             pass
         elif command[0] == "QUIT":
-            pass
+            if command[1][0] != ":":
+                return "ERR_INCORRECTFORMAT"
+            
+            self.QUIT()
+
         elif command[0] == "JOIN":
             if not command[1]:
                 return "NOTICE %s:No channel provided"%(command[1])
@@ -141,7 +151,6 @@ class Server:
                     index = sections.index(s)
                     temp = [sections[index], sections[index+1]]
                     self.operation(temp)
-                    print("d")
                 except IndexError as e:
                     print(e)
                     response = "ERR_NEEDMOREPARAMS"
@@ -154,9 +163,7 @@ class Server:
                 try:
                     
                     temp = [sections[index], sections[index+1], sections[index+4]]
-                    print("c")
                     self.operation(temp)
-                    print("c")
 
                 except IndexError as e:
                     print(e)
@@ -165,19 +172,21 @@ class Server:
             if response:
                return response
             
+    def QUIT(self):
+        removedClient = self.clients.pop(self.currentClient.getNick())
+        removedClient.getSocketObj().close()
 
     def NICK(self, nickname:str):
         if self.newClient:
             # Add client to the dictionary
-            print("a")
             self.clients[nickname] = Client(nickname)
             self.clients.pop(self.tempClient.getNick())
             self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
             self.tempClient.setSocketObj(None)
 
             self.clients[nickname].upadateNick(nickname)
-            welcome_message = f"Bears-Laptop 001 EdFoster :Welcome, {nickname}!"
-            self.sendData(welcome_message, self.clients[nickname].getSocketObj())
+            welcome_message = "CAP * LS :"
+            self.sendData(welcome_message, self.clients[nickname])
             print(f"Nickname set to: {nickname}")
         
         else:
@@ -198,7 +207,6 @@ class Server:
 
     def PING(self):
         """ Handles PING command. """
-        self.sendData("PONG")
         self.timeFirst = time.time()
         if not self.tennis and self.timeDifference > 60:
             self.sendData("PING %s" %(self.clients[0]))
@@ -271,7 +279,7 @@ class Server:
                         case "ERR_INCORRECTFORMAT":
                             response = ":%s :Incorrect format" %(self.tempClient.getNick())
 
-                    self.sendData(response, currentClient.getSocketObj())
+                    self.sendData(response, currentClient)
                 except:
                     pass
 
