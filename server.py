@@ -65,6 +65,9 @@ class Channel:
         removedClient = self.clients.pop(client.getNick())
         return removedClient
 
+    def getListofClients(self):
+        return self.clients.keys()
+
 
 class Server:
     
