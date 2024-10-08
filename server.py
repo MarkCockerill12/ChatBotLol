@@ -28,6 +28,16 @@ class Client:
 
     def getSocketObj(self):
         return self._ownSocketObj
+    
+    def receiveData(self):
+        try:
+            data = self.socket_obj.recv(1024).decode("utf-8")
+            if data:
+                print(f"Received data: {data}")
+                return data
+        except socket.error as e:
+            print(f"Error receiving data: {e}")
+            return None
 
     def sendData(self,data):
         self._ownSocketObj.sendall(bytes(data))
