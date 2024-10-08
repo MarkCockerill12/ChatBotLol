@@ -11,16 +11,16 @@ class Client:
         self.permissions = permissions
         self.realname = realName
 
-    def upadateNick(self, nickName):
+    def updateNick(self, nickName):
         self.NICK = nickName
 
     def getNick(self):
         return self.NICK
 
     def getTennis(self):
-        return ping
+        return self.ping
 
-    def setUser(self, USERarr:list[str, str, str]):
+    def setUser(self, USERarr):
         self.USER = USERarr
 
     def setSocketObj(self, socketObject):
@@ -29,8 +29,11 @@ class Client:
     def getSocketObj(self):
         return self._ownSocketObj
 
-    def sendData(self,data):
-        self._ownSocketObj.sendall(bytes(data))
+    def sendData(self, data):
+        self._ownSocketObj.sendall(data.encode('utf-8'))
+
+    def setPing(self, b):
+        self.ping = b
     
     def setTennis(self, b:bool):
         self.ping = b
@@ -49,52 +52,52 @@ class Client:
         self.realname = ""
         self._ownSocketObj = None
 
-
-
-
-
-
 class Channel:
     def __init__(self):
-        self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
-    
+        self.clients = {}  # Dictionary of users in the channel, key as NICK and value as Client class
+
     def addClient(self, client):
         self.clients[client.getNick()] = client
 
     def removeClient(self, client):
-        removedClient = self.clients.pop(client.getNick())
-        return removedClient
+        if client.getNick() in self.clients:
+            removedClient = self.clients.pop(client.getNick())
+            return removedClient
+        return None
 
-    def getListofClients(self):
+    def getListOfClients(self):
         return self.clients.keys()
 
 
 class Server:
-    
-    def sendData(self, data, client:Client):
+    def __init__(self):
+        self.tennis = False
+        self.timeDifference = 0
+        self.timeFirst = time.time()
+        self.channels = {}  # Dictionary of channel classes with key as channel name and value as class
+        self.clients = {}  # Dictionary of users in the server, key as NICK and value of Client class
+        self.main()
+
+    def sendData(self, data, client):
         try:
-            print("attempt to send")
             encodedData = data.encode("utf-8")
             client.getSocketObj().sendall(encodedData)
-            ##client.sendData(data.encode("utf-8"))
-            client.setTennis(True)
-            print("Data sent")
-
+            client.setPing(True)
+            print("Data sent:", data)
         except socket.error as e:
             print(f"Error sending data: {e}")
 
-    def receiveData(self, readable:socket.socket):
-        try:           
+    def receiveData(self, readable):
+        try:
             receiveData = readable.recv(1024).decode()
             if receiveData:
                 self.tennis = True
                 self.timeFirst = time.time()
                 return receiveData
-                
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
-    
+
     def operation(self, command):
 
         #error codes:
@@ -103,81 +106,87 @@ class Server:
         #JOIN: ERR_NEEDMOREPARAMS
         #PING: ERR_NOORIGIN
         #QUIT: ERR_NOORIGIN
-
         if command[0] == "NICK":
-            if len(command[1]) > 15 or len(command[1]) < 3:
-                print("1")
-                return "ERR_ERRONEUSNICKNAME"
-            elif command[1] in self.clients:
-                print("2")
-                return "ERR_NICKNAMEINUSE"
-            self.NICK(command[1])
-            
-        elif command[0] == "USER":
-            if command[2][0] != ":":
-                print("Real name must start with a colon")
-                return "ERR_INCORRECTFORMAT"
+            return self.setNick(command[1])
 
-            self.USER(command[1], command[2])
+        elif command[0] == "USER":
+            return self.setUser(command[1], command[2])
 
         elif command[0] == "PONG":
-            pass
+            return self.PONG()
+
         elif command[0] == "QUIT":
-            if command[1][0] != ":":
-                return "ERR_INCORRECTFORMAT"
-            
-            self.QUIT()
+            return self.quit()
 
         elif command[0] == "JOIN":
-            if not command[1]:
-                return "NOTICE %s:No channel provided"%(command[1])
-            elif self.channels[command[1]]:
-                self.JOIN(command[1])
-            else:
-                self.channels[command[1]] = Channel()
-                self.JOIN(command[1])
-                return 0
+            return self.joinChannel(command[1])
 
         else:
-            print("unknown command")
-    
+            print("Unknown command:", command[0])
+            return f":Error: Unknown command {command[0]}"
+
+    def setNick(self, nickname):
+        if len(nickname) > 15 or len(nickname) < 3:
+            return "ERR_ERRONEUSNICKNAME"
+        if nickname in self.clients:
+            return "ERR_NICKNAMEINUSE"
+        self.clients[nickname] = Client(nickname)
+        self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
+        welcome_message = f":Welcome to the IRC, {nickname}!"
+        self.sendData(welcome_message, self.clients[nickname])
+        print(f"Nickname set to: {nickname}")
+
+    def setUser(self, username, realname):
+        if username in self.clients:
+            self.clients[username].setUser([username, realname[1:]])
+            return None
+        return "ERR_ALREADYREGISTERED"
+
+    def joinChannel(self, channel):
+        if channel not in self.channels:
+            self.channels[channel] = Channel()
+        self.channels[channel].addClient(self.tempClient)
+        self.sendData(f":{self.tempClient.getNick()} has joined {channel}", self.channels[channel])
+        print(f"{self.tempClient.getNick()} has joined {channel}")
+
+    def quit(self):
+        if self.tempClient.getNick() in self.clients:
+            self.sendData(f":{self.tempClient.getNick()} has left the server.", self.tempClient)
+            self.clients.pop(self.tempClient.getNick()).getSocketObj().close()
+
+    def PONG(self):
+        print("PONG received")
 
     def checkCommand(self, data):
         if not data:
             return
-        
+
         sections = data.split()
-        print(sections)
         temp = []
         response = None
 
         for s in sections:
             if s == "NICK":
-                try:
-                    index = sections.index(s)
-                    temp = [sections[index], sections[index+1]]
-                    self.operation(temp)
-                except IndexError as e:
-                    print(e)
-                    response = "ERR_NEEDMOREPARAMS"
+                index = sections.index(s)
+                temp = [sections[index], sections[index + 1]]
+                response = self.operation(temp)
 
             elif s == "USER":
                 index = sections.index(s)
                 if len(sections[index:]) > 5:
                     return "ERR_TOOMANYARGUMENTS"
-                
+
                 try:
-                    
-                    temp = [sections[index], sections[index+1], sections[index+4]]
-                    self.operation(temp)
+                    temp = [sections[index], sections[index + 1], sections[index + 4]]
+                    response = self.operation(temp)
 
                 except IndexError as e:
                     print(e)
                     response = "ERR_NEEDMOREPARAMS"
 
             if response:
-               return response
-            
+                return response
+        
     def QUIT(self):
         removedClient = self.clients.pop(self.currentClient.getNick())
         removedClient.getSocketObj().close()
@@ -229,68 +238,46 @@ class Server:
     def addClientToReadableList(self):
         readable = []
         for client in self.clients.values():
-            readable.append(client.getSocketObj()) # In same order as clients dictionary
+            readable.append(client.getSocketObj())  # In same order as clients dictionary
         return readable
 
     def main(self):
-
         port = 6667
         self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        self.soc.bind(('',port))
-        print("Socket binded to %d" %(port))
+        self.soc.bind(('', port))
+        print("Socket binded to %d" % (port))
 
         self.soc.listen(5)
         print("Socket listening")
-        
-        readable = []
-        writable = []
-        self.tempSocketObject = []
-        response = None
-        
-        while True:
-            readable.clear()
-            readable.append(self.soc)
-            readable.extend(self.addClientToReadableList())
 
-            readConnection, readCommand, e = select.select(readable, writable, [], 1.0)
-            
+        while True:
+            readable = [self.soc] + self.addClientToReadableList()
+            readConnection, _, _ = select.select(readable, [], [], 1.0)
+
             for con in readConnection:
-                if con is self.soc: # Adds new client to the server
-                    self.newClient = True
+                if con is self.soc:  # Adds new client to the server
                     self.tempSocketObject = con.accept()
                     self.tempClient = Client("temp")
                     self.tempClient.setSocketObj(self.tempSocketObject[0])
-                    currentClient = self.tempClient.getNick()
-                    self.clients[currentClient] = self.tempClient
-                    response = self.checkCommand(self.receiveData(self.tempSocketObject[0]))
+                    self.clients[self.tempClient.getNick()] = self.tempClient
+                    print("New client connected.")
 
-                else: # Checks for commands from existing clients
-                    self.newClient = False
-                    for client in self.clients.values():
+                    # Send welcome message immediately after accepting a new client
+                    welcome_message = f":Welcome to the IRC, {self.tempClient.getNick()}!"
+                    self.sendData(welcome_message, self.tempClient)
+                else:  # Checks for commands from existing clients
+                    for client in list(self.clients.values()):  # Use list to avoid RuntimeError
                         if con == client.getSocketObj():
-                            self.client = client.getNick()
-                            currentClient = client.getNick()
-                            break
-                    response = self.checkCommand(self.receiveData(con))
-                try:
-                    match response:
-                        case "ERR_ERRONEUSNICKNAME":
-                            response = ":%s :Erroneus nickname" %(self.tempClient.getNick())
-                        case "ERR_NICKNAMEINUSE":
-                            response = ":%s :Nickname is already in use" %(self.tempClient.getNick())
-                        case "ERR_NEEDMOREPARAMS":
-                            response = ":%s :Not enough parameters" %(self.tempClient.getNick())
-                        case "ERR_TOOMANYARGUMENTS":
-                            response = ":%s :Too many arguments" %(self.tempClient.getNick())
-                        case "ERR_INCORRECTFORMAT":
-                            response = ":%s :Incorrect format" %(self.tempClient.getNick())
+                            self.tempClient = client
+                            data = self.receiveData(con)
+                            response = self.checkCommand(data)
 
-                    self.sendData(response, currentClient)
-                except:
-                    pass
+                            if response:
+                                self.sendData(response, self.tempClient)
 
-                self.tennis = False
+                    self.tennis = False
 
+    
     def __init__(self):
         self.tennis = False
         self.timeDifference = 0
@@ -301,6 +288,5 @@ class Server:
         self.main()
 
 
-
 if __name__ == "__main__":
-    test = Server()
+    server = Server()
