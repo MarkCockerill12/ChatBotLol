@@ -73,12 +73,16 @@ class Server:
     
     def sendData(self, data, client:Client):
         try:
-            print("attempt to send")
+            print("Attempt to send")
             encodedData = data.encode("utf-8")
-            client.getSocketObj().sendall(encodedData)
+            socketObj = client.getSocketObj()
+            print(f"Sending to {socketObj.getpeername()}: {data}")
+            socketObj.setblocking(False)
+            socketObj.sendall(encodedData)
+            #client.getSocketObj().sendall(encodedData)
             ##client.sendData(data.encode("utf-8"))
             client.setTennis(True)
-            print("Data sent")
+            print("Data sent successfully")
 
         except socket.error as e:
             print(f"Error sending data: {e}")
