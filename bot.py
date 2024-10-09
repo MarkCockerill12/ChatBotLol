@@ -108,7 +108,7 @@ class Bot:
         elif message.startswith(self.command_prefix):  # If it's a command
             parts = message[len(self.command_prefix):].strip().split()
 
-            #checks if parts list is empty E.G the user inputs "!"
+            #input validation for if parts list is empty E.G the user inputs "!"
             if len(parts) == 0:
                 self.send_message(f"Unknown Command, use !help for a list of the commands.")
                 return
