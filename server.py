@@ -62,16 +62,6 @@ class Channel:
 
 
 class Server:
-    
-    def __init__(self):
-        self.tennis = False
-        self.timeDifference = 0
-        self.timeFirst = time.time()
-        self.channels = {}  # will be dictionary of channel classes with key as channel name and value as class
-        self.clients = {}  # will be dictionary of users in the server, key as NICK and value of client class
-
-
-
     def sendData(self, data, client: Client):
         try:
             if client.getSocketObj() is None:
@@ -92,16 +82,13 @@ class Server:
     def receiveData(self, readable: socket.socket):
         try:
             receiveData = readable.recv(1024).decode()
-            if not receiveData:
-                print("Client disconnected.")
-                return None  # Client has disconnected
-            self.tennis = True
-            self.timeFirst = time.time()
-            return receiveData
+            if receiveData:
+                self.tennis = True
+                self.timeFirst = time.time()
+                return receiveData
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
-
 
     def checkCommand(self, data):
         if not data:
@@ -247,7 +234,7 @@ class Server:
         port = 6667
         self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         self.soc.bind(('', port))
-        print(f"Server bound to IPv6 address on port {port}")
+        print("Socket binded to %d" % (port))
 
         self.soc.listen(5)
         print("Socket listening")
@@ -282,18 +269,19 @@ class Server:
                             break
                     response = self.checkCommand(self.receiveData(con))
                 try:
-                    if response == "ERR_ERRONEUSNICKNAME":
-                        response = ":%s :Erroneus nickname" % (self.tempClient.getNick())
-                    elif response == "ERR_NICKNAMEINUSE":
-                        response = ":%s :Nickname is already in use" % (self.tempClient.getNick())
-                    elif response == "ERR_NEEDMOREPARAMS":
-                        response = ":%s :Not enough parameters" % (self.tempClient.getNick())
-                    elif response == "ERR_TOOMANYARGUMENTS":
-                        response = ":%s :Too many arguments" % (self.tempClient.getNick())
-                    elif response == "ERR_INCORRECTFORMAT":
-                        response = ":%s :Incorrect format" % (self.tempClient.getNick())
-                    elif response == "JOIN":
-                        self.JOIN(response.split()[1], currentClient)
+                    match response:
+                        case "ERR_ERRONEUSNICKNAME":
+                            response = ":%s :Erroneus nickname" % (self.tempClient.getNick())
+                        case "ERR_NICKNAMEINUSE":
+                            response = ":%s :Nickname is already in use" % (self.tempClient.getNick())
+                        case "ERR_NEEDMOREPARAMS":
+                            response = ":%s :Not enough parameters" % (self.tempClient.getNick())
+                        case "ERR_TOOMANYARGUMENTS":
+                            response = ":%s :Too many arguments" % (self.tempClient.getNick())
+                        case "ERR_INCORRECTFORMAT":
+                            response = ":%s :Incorrect format" % (self.tempClient.getNick())
+                        case "JOIN":
+                            self.JOIN(response.split()[1], currentClient)
 
                     if response:  # Ensure response is not None
                         self.sendData(response, self.clients[currentClient])
@@ -302,7 +290,14 @@ class Server:
 
                 self.tennis = False
 
-    
+    def __init__(self):
+        self.tennis = False
+        self.timeDifference = 0
+        self.timeFirst = time.time()
+        self.channels = {}  # will be dictionary of channel classes with key as channel name and value as class
+        self.clients = {}  # will be dictionary of users in the server, key as NICK and value of client class
+        self.main()
+
+
 if __name__ == "__main__":
-    server = Server()
-    server.main()
+    test = Server()
