@@ -4,7 +4,6 @@ import time
 
 
 class Client:
-
     def __init__(self, NICK=""):
         self.ping = False
         self.tennis = False
@@ -63,18 +62,14 @@ class Channel:
 
 
 class Server:
-
     def sendData(self, data, client: Client):
         try:
             if client.getSocketObj() is None:
                 print("Client's socket object is not set.")
                 return
-            print("attempt to send")
             print(f"Data to send: {data} (type: {type(data)})")
             encodedData = data.encode("utf-8")
-            print("attempt to send1")
             client.getSocketObj().sendall(encodedData)
-            print("attempt to send2")
             client.setTennis(True)
             print("Data sent")
         except AttributeError as e:
@@ -91,7 +86,6 @@ class Server:
                 self.tennis = True
                 self.timeFirst = time.time()
                 return receiveData
-
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
@@ -102,50 +96,26 @@ class Server:
 
         sections = data.split()
         print(f"Received sections: {sections}")
-        temp = []
         response = None
 
         for i, s in enumerate(sections):
             if s == "NICK":
-                try:
-                    temp = [sections[i], sections[i + 1]]
-                    response = self.operation(temp)
-                    print(f"NICK command processed: {temp}")
-                except IndexError as e:
-                    print(e)
-                    response = "ERR_NEEDMOREPARAMS"
-                    break  # Exit the loop if an error occurs
-
+                response = self.operation(sections[i:i+2])
             elif s == "USER":
-                if len(sections[i:]) > 5:
-                    response = "ERR_TOOMANYARGUMENTS"
-                    break  # Exit the loop if too many arguments
-
-                try:
-                    temp = [sections[i], sections[i + 1], sections[i + 4]]
-                    response = self.operation(temp)
-                    print(f"USER command processed: {temp}")
-                except IndexError as e:
-                    print(e)
-                    response = "ERR_NEEDMOREPARAMS"
-                    break  # Exit the loop if an error occurs
-
+                response = self.operation(sections[i:i+4])
             elif s == "JOIN":
-                try:
-                    temp = [sections[i], sections[i + 1]]
-                    response = self.operation(temp)
-                    print(f"JOIN command processed: {temp}")
-                except IndexError as e:
-                    print(e)
-                    response = "ERR_NEEDMOREPARAMS"
-                    break  # Exit the loop if an error occurs
-
-            # Add more command handling as needed
+                response = self.operation(sections[i:i+2])
+            elif s == "PONG":
+                response = self.operation(sections[i:i+1])
+            elif s == "QUIT":
+                response = self.operation(sections[i:i+2])
+            else:
+                continue
 
         if response:
             return response
         else:
-            return "ERR_UNKNOWNCOMMAND"  # Return an error for unknown commands
+            return None  # Return None instead of ERR_UNKNOWNCOMMAND32
 
     def operation(self, command):
         print(f"Operation called with command: {command}")
@@ -177,15 +147,15 @@ class Server:
                 return "NOTICE %s:No channel provided" % (command[1])
             elif command[1] in self.channels:
                 self.JOIN(command[1], self.client)
-                print("the code is here 1")
             else:
                 self.channels[command[1]] = Channel()
                 self.JOIN(command[1], self.client)
                 print("the code is here 2")
-            return "JOIN command processed"
+            return None  # Return None to avoid sending "JOIN command processed"
 
         else:
             print("unknown command")
+            print("The problem is here 2")
             return "ERR_UNKNOWNCOMMAND"
 
     def QUIT(self):
@@ -213,7 +183,6 @@ class Server:
         self.clients[username].setUser([username, realname[1:]])
 
     def JOIN(self, channel, client_name):
-        print("The join function is called")
         if not channel:
             raise ValueError("No channel provided.")
         if channel not in self.channels:
@@ -239,20 +208,20 @@ class Server:
         end_names_message = f":localhost 366 {client_name} {channel} :End of /NAMES list\r\n"
         self.sendData(end_names_message, self.clients[client_name])
 
-
     def PING(self):
         """ Handles PING command. """
         self.timeFirst = time.time()
+        self.timeDifference = time.time() - self.timeFirst
         if not self.tennis and self.timeDifference > 60:
             self.sendData("PING %s" % (self.clients[0]))
-            pass
-        elif self.tennis == False:
-            self.timeDifference = self.timeFirst - time.time()
+            print("PING sent")
+        elif not self.tennis:
+            self.timeDifference = time.time() - self.timeFirst
             print("PING sent")
 
     def PONG(self):
         """ Handles PONG command. """
-        self.timeDifference = self.timeFirst - time.time()
+        self.timeDifference = time.time() - self.timeFirst
         print("PONG received")
 
     def addClientToReadableList(self):
@@ -262,7 +231,6 @@ class Server:
         return readable
 
     def main(self):
-
         port = 6667
         self.soc = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         self.soc.bind(('', port))
@@ -282,7 +250,6 @@ class Server:
             readable.extend(self.addClientToReadableList())
 
             readConnection, readCommand, e = select.select(readable, writable, [], 1.0)
-            readConnection, _, _ = select.select(readable, writable, [], 1.0)
             for con in readConnection:
                 if con is self.soc:  # Adds new client to the server
                     self.newClient = True
@@ -314,11 +281,12 @@ class Server:
                         case "ERR_INCORRECTFORMAT":
                             response = ":%s :Incorrect format" % (self.tempClient.getNick())
                         case "JOIN":
-                            self.JOIN(response.split()[1])
+                            self.JOIN(response.split()[1], currentClient)
 
-                    self.sendData(response, self.clients[currentClient])
-                except:
-                    pass
+                    if response:  # Ensure response is not None
+                        self.sendData(response, self.clients[currentClient])
+                except Exception as e:
+                    print(f"Error: {e}")
 
                 self.tennis = False
 
