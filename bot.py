@@ -163,18 +163,29 @@ class Bot:
                         self.send_message("Usage: !privmsg <user> <message>")
 
                 case "slap":
+                    #Calls on user_Search method to get list of users in the channel
                     user_list = self.user_search()
                     if len(args) >= 1:
                         user = args[0]
+                        
+                        #Input Validations for Slap command
+                        #If slap victim is either the bot or sender
                         if user.lower() == self.nick.lower() or user.lower() == sender.lower():
                             response = "I can't slap myself or the sender!"
+                        
+                        #If user is found in user_list
                         elif user.lower() in [u.lower() for u in user_list]:
                             response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"
+                        
+                        #If user is not found in user_list
                         else:
                             response = f"\x01ACTION slaps {sender} because {user} is not a user in the server\x01"
                     else:
+                        #If user list contains only user and bot
                         if len(user_list) <= 2:
                             response = "There is no valid target to slap because only me and the sender exist in the channel"
+                        
+                        #Chooses random user from user list
                         else:
                             target = random.choice([u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()])
                             response = f"\x01ACTION slaps {target} around a bit with a large trout\x01"
@@ -213,7 +224,7 @@ class Bot:
         try:
             while True:
                 data = self.s.recv(2048).decode('utf-8')
-                match = re.search(r"353 .* = .* :(.*)", data)
+                match = re.search(r"353 .* = .* :(.*)", data) #Reads data after 353 which indicates start of user list
 
                 if match:
                     users = match.group(1).split()
