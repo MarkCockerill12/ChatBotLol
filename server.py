@@ -113,7 +113,7 @@ class Server:
                 return "ERR_NICKNAMEINUSE"
             else:
                 self.NICK(command[1])
-                response = f"Wellcome {command[1]}"
+                response = f"Welcome {command[1]}"
 
         elif command[0] == "USER":
             if command[2][0] != ":":
@@ -218,6 +218,8 @@ class Server:
             self.channels[channel] = Channel()
         self.channels[channel].clients[self.temp] = self.clients[self.temp]
         print(f"{self.temp} has joined {channel}")
+        irc = ":%s JOIN %s" %(self.temp, channel)
+        self.sendData(irc)
 
     def PING(self):
         """ Handles PING command. """
