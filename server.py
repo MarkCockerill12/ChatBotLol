@@ -173,7 +173,7 @@ class Server:
 
             elif s == "USER":
                 index = sections.index(s)
-                if len(sections[index:]) > 5:
+                if len(sections[index:]) < 5:
                     return "ERR_TOOMANYARGUMENTS"
 
                 try:
