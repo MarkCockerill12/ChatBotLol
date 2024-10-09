@@ -148,6 +148,9 @@ class Server:
         self.channels[channel].addClient(self.tempClient)
         self.sendData(f":{self.tempClient.getNick()} has joined {channel}", self.channels[channel])
         print(f"{self.tempClient.getNick()} has joined {channel}")
+        irc = f":{self.tempClient.getNick()}!{self.tempClient.getNick()}@{self.tempClient.getNick()} JOIN {channel}"
+        self.sendData(irc, self.tempClient)
+        
 
     def quit(self):
         if self.tempClient.getNick() in self.clients:
