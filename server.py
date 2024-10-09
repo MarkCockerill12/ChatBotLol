@@ -31,7 +31,7 @@ class Client:
     
     def receiveData(self):
         try:
-            data = self.socket_obj.recv(1024).decode("utf-8")
+            data = self.SocketObj.recv(1024).decode("utf-8")
             if data:
                 print(f"Received data: {data}")
                 return data
@@ -87,7 +87,7 @@ class Server:
             encodedData = data.encode("utf-8")
             socketObj = client.getSocketObj()
             print(f"Sending to {socketObj.getpeername()}: {data}")
-            socketObj.setblocking(False)
+            #socketObj.setblocking(False)
             socketObj.sendall(encodedData)
             #client.getSocketObj().sendall(encodedData)
             ##client.sendData(data.encode("utf-8"))
