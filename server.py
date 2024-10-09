@@ -76,7 +76,7 @@ class Server:
             print("attempt to send")
             encodedData = data.encode("utf-8")
             client.getSocketObj().sendall(encodedData)
-            ##client.sendData(data.encode("utf-8"))
+            #client.sendData(data.encode("utf-8"))
             client.setTennis(True)
             print("Data sent")
 
@@ -84,7 +84,7 @@ class Server:
             print(f"Error sending data: {e}")
 
     def receiveData(self, readable:socket.socket):
-        try:           
+        try:
             receiveData = readable.recv(1024).decode()
             if receiveData:
                 self.tennis = True
@@ -111,16 +111,20 @@ class Server:
             elif command[1] in self.clients:
                 print("2")
                 return "ERR_NICKNAMEINUSE"
-            self.NICK(command[1])
-            
+            else:
+                self.NICK(command[1])
+                response = f"Wellcome {command[1]}"
+
         elif command[0] == "USER":
             if command[2][0] != ":":
                 print("Real name must start with a colon")
                 return "ERR_INCORRECTFORMAT"
-
-            self.USER(command[1], command[2])
+            else:
+                self.USER(command[1], command[2])
+                response = f"User {command[1]} registered as {command[2]}"
 
         elif command[0] == "PONG":
+            self.PONG()
             pass
         elif command[0] == "QUIT":
             if command[1][0] != ":":
@@ -133,9 +137,11 @@ class Server:
                 return "NOTICE %s:No channel provided"%(command[1])
             elif self.channels[command[1]]:
                 self.JOIN(command[1])
+                response = f"Joined channel {command[1]}"
             else:
                 self.channels[command[1]] = Channel()
                 self.JOIN(command[1])
+                response = f"Channel {command[1]} created and joined"
                 return 0
 
         else:
@@ -144,10 +150,12 @@ class Server:
 
     def checkCommand(self, data):
         if not data:
+            print("No data received")
             return
         
+        print(f"Data received: {data}")
         sections = data.split()
-        print(sections)
+        print(f"Command sections: ", sections)
         temp = []
         response = None
 
