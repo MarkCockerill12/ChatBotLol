@@ -29,10 +29,35 @@ class Bot:
 
             # Send NICK and USER commands
             self.s.send(f"NICK {self.nick}\r\n".encode('utf-8'))
+            print(f"Sent NICK command: NICK {self.nick}")
             self.s.send(f"USER {self.nick} 0 * :{self.nick}\r\n".encode('utf-8'))
+            print(f"Sent USER command: USER {self.nick} 0 * :{self.nick}")
+
+            # Check if the channel exists
+            self.s.send(f"NAMES {self.channel}\r\n".encode('utf-8'))
+            print(f"Sent NAMES command to check if channel {self.channel} exists")
+
+            # Wait for the server response
+            self.s.settimeout(10)  # Increase timeout duration
+            try:
+                while True:
+                    data = self.s.recv(2048).decode('utf-8')
+                    print(f"Server Response: {data.strip()}")
+                    if f"353 {self.nick} =" in data:
+                        print(f"Channel {self.channel} exists. Joining the channel.")
+                        break
+                    elif f"366 {self.nick} {self.channel}" in data:
+                        print(f"End of NAMES list for {self.channel}.")
+                        break
+                    elif "No such nick/channel" in data:
+                        print(f"Channel {self.channel} does not exist. Creating the channel.")
+                        break
+            except socket.timeout:
+                print("Timeout while checking if channel exists. Assuming it does not exist.")
 
             # Join the channel
             self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
+            print(f"Sent JOIN command: JOIN {self.channel}")
 
             self.Connected = True
             self.running_bot()
@@ -221,13 +246,13 @@ class Bot:
         return user_list
 
 def main():
-    print("  ________  ___  ___  ________  _________        ________  ________  _________   ")
-    print(" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
-    print(" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
-    print("  \ \  \    \ \   __  \ \   __  \   \ \  \       \ \   __  \ \  \\\  \   \ \  \  ")
-    print("   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \   \ \  \ ")
-    print("    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
-    print("     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
+    print(r"  ________  ___  ___  ________  _________        ________  ________  _________   ")
+    print(r" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
+    print(r" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
+    print(r"  \ \  \    \ \   __  \ \   __  \   \ \  \       \ \   __  \ \  \\\  \   \ \  \  ")
+    print(r"   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \   \ \  \ ")
+    print(r"    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
+    print(r"     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
 
     # User Inputs with Command-line Arguments
     parser = argparse.ArgumentParser(description='ChatBot Configuration')
