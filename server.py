@@ -214,12 +214,24 @@ class Server:
         """ Handles join command. """
         if not channel:
             raise ValueError("No channel provided.")
+        
         if channel not in self.channels:
             self.channels[channel] = Channel()
-        self.channels[channel].clients[self.temp] = self.clients[self.temp]
-        print(f"{self.temp} has joined {channel}")
-        irc = ":%s JOIN %s" %(self.temp, channel)
-        self.sendData(irc)
+            
+        if self.tempClient is None:
+            raise ValueError("No client provided.")
+        self.channels[channel].addClient(self.clients)
+        welcome_message = f"Welcome to {channel}, {self.tempClient.getNick()}"
+        self.sendData(welcome_message, self.tempClient)
+
+        for client in self.channels[channel].getListofClients():
+            if client != self.temp:
+                self.sendData(f"{self.temp} has joined {channel}", self.clients[client])
+
+        print(f"{self.tempClient.getNick()} has joined {channel}")
+        #self.channels[channel].clients[self.temp] = self.clients[self.temp]
+        #print(f"{self.temp} has joined {channel}")
+ 
 
     def PING(self):
         """ Handles PING command. """
