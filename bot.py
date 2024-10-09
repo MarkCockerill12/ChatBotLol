@@ -107,12 +107,6 @@ class Bot:
 
         elif message.startswith(self.command_prefix):  # If it's a command
             parts = message[len(self.command_prefix):].strip().split()
-
-            #input validation for if parts list is empty E.G the user inputs "!"
-            if len(parts) == 0:
-                self.send_message(f"Unknown Command, use !help for a list of the commands.")
-                return
-
             command = parts[0].lower()
             args = parts[1:]
 
@@ -163,29 +157,18 @@ class Bot:
                         self.send_message("Usage: !privmsg <user> <message>")
 
                 case "slap":
-                    #Calls on user_Search method to get list of users in the channel
                     user_list = self.user_search()
                     if len(args) >= 1:
                         user = args[0]
-                        
-                        #Input Validations for Slap command
-                        #If slap victim is either the bot or sender
                         if user.lower() == self.nick.lower() or user.lower() == sender.lower():
                             response = "I can't slap myself or the sender!"
-                        
-                        #If user is found in user_list
                         elif user.lower() in [u.lower() for u in user_list]:
                             response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"
-                        
-                        #If user is not found in user_list
                         else:
                             response = f"\x01ACTION slaps {sender} because {user} is not a user in the server\x01"
                     else:
-                        #If user list contains only user and bot
                         if len(user_list) <= 2:
                             response = "There is no valid target to slap because only me and the sender exist in the channel"
-                        
-                        #Chooses random user from user list
                         else:
                             target = random.choice([u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()])
                             response = f"\x01ACTION slaps {target} around a bit with a large trout\x01"
@@ -224,7 +207,7 @@ class Bot:
         try:
             while True:
                 data = self.s.recv(2048).decode('utf-8')
-                match = re.search(r"353 .* = .* :(.*)", data) #Reads data after 353 which indicates start of user list
+                match = re.search(r"353 .* = .* :(.*)", data)
 
                 if match:
                     users = match.group(1).split()
@@ -238,13 +221,13 @@ class Bot:
         return user_list
 
 def main():
-    print(r"  ________  ___  ___  ________  _________        ________  ________  _________   ")
-    print(r" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
-    print(r" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
-    print(r"  \ \  \    \ \   __  \ \   __  \   \ \  \       \ \   __  \ \  \\\  \   \ \  \  ")
-    print(r"   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \   \ \  \ ")
-    print(r"    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
-    print(r"     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
+    print("  ________  ___  ___  ________  _________        ________  ________  _________   ")
+    print(" |\   ____\|\  \|\  \|\   __  \|\___   ___\     |\   __  \|\   __  \|\___   ___\ ")
+    print(" \ \  \___|\ \  \\\  \ \  \|\  \|___ \  \_|     \ \  \|\ /\ \  \|\  \|___ \  \_| ")
+    print("  \ \  \    \ \   __  \ \   __  \   \ \  \       \ \   __  \ \  \\\  \   \ \  \  ")
+    print("   \ \  \____\ \  \ \  \ \  \ \  \   \ \  \       \ \  \|\  \ \  \\\  \   \ \  \ ")
+    print("    \ \_______\ \__\ \__\ \__\ \__\   \ \__\       \ \_______\ \_______\   \ \__\ ")
+    print("     \|_______|\|__|\|__|\|__|\|__|    \|__|        \|_______|\|_______|    \|__|")
 
     # User Inputs with Command-line Arguments
     parser = argparse.ArgumentParser(description='ChatBot Configuration')
