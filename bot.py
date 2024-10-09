@@ -1,12 +1,9 @@
-import os
 import socket
-import sys
 import time
-import random
-import re
 import argparse
+import os
+import re
 
-# Bot Class
 class Bot:
     def __init__(self, server="::1", port=6667, nick="BotLol", channel="#Test"):
         self.server = server
@@ -21,7 +18,18 @@ class Bot:
         self.jokes_file = "jokes.txt"
         self.startup_time = time.time()  # To track uptime
         self.current_users = []
-        
+
+    def handle_messages(self, data):
+        if "PRIVMSG" in data:
+            self.handle_privmsg(data)
+        elif "332" in data:  # Topic of the channel
+            self.handle_topic(data)
+        elif "353" in data:  # Names list
+            self.handle_names(data)
+        elif "366" in data:  # End of names list
+            self.handle_end_of_names(data)
+        else:
+            print(f"Unhandled message: {data.strip()}")
 
     def connect(self):
         try:
@@ -33,85 +41,71 @@ class Bot:
             self.s.send(f"NICK {self.nick}\r\n".encode('utf-8'))
             self.s.send(f"USER {self.nick} 0 * :{self.nick}\r\n".encode('utf-8'))
 
-            # Join the channel
-            self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
-
             self.Connected = True
-            self.running_bot()
+            print(f"Connected as {self.nick}. Joining channel {self.channel}...")
+            self.join_channel()
+            self.running_bot()  # Start receiving messages
 
         except Exception as e:
-            print(f"Socket error occurred: {e}")
+            print(f"Connection error: {e}")
             self.shutdown()
+
+    def join_channel(self):
+        try:
+            self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
+            print(f"Bot joining channel {self.channel}")
+            # Wait for server response to confirm join
+            while True:
+                data = self.s.recv(1024).decode('utf-8')
+                print(f"Server Response: {data.strip()}")
+                if f"JOIN {self.channel}" in data:
+                    print(f"Successfully joined channel {self.channel}")
+                    # Send welcome message
+                    self.send_message(f"Hello everyone! I'm {self.nick}. Type !help to see what I can do.")
+                    break
+                elif "ERR" in data:
+                    print(f"Error joining channel: {data.strip()}")
+                    break
+        except Exception as e:
+            print(f"Error joining channel: {e}")
 
     def running_bot(self):
         while self.Connected:
             try:
                 data = self.s.recv(1024).decode('utf-8')
 
-
                 if not data:
                     print("Disconnected from server.")
                     break
 
                 print("Server Response:", data.strip())
-
+                
                 # Handle PING/PONG
                 if data.startswith("PING"):
                     ping_response = data.split()[1]
                     self.s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
                     print(f"Sent PONG response to {ping_response}")
 
-                # Handle channel join confirmation
-                if f":{self.nick}!{self.nick}@".lower() in data.lower() and "join".lower() in data.lower():
-                    print(f"Successfully joined {self.channel}. Sending welcome message...")
-                    self.send_message(f"Hello {self.channel}. I am {self.nick}, the friendly chat Bot, say !help to find out how to talk to me.")
-                    self.current_users = self.user_search()
-                    initial_data = data.strip()
-
-
-                if "JOIN" in data:
-                    user_part = data.split('!')[0][1:]  # Extract the user who joined
-                    print(f"{user_part} has joined the channel.")
-                    
-                    # Update the user list
-                    self.current_users = self.user_search()
-                    print("Current users after join:", self.current_users)
-
-
-
-
-                # Handle user quitting
-                if "QUIT" in data:
-                    user_part = data.split('!')[0][1:]  # Extract the user who quit
-                    print(f"{user_part} has quit the channel.")
-                    
-                    # Update the user list
-                    self.current_users = self.user_search()
-                    print("Current users after quit:", self.current_users)
-
-
-
-                # Handle messages from the channel
-                if "PRIVMSG" in data:
-                        self.handle_privmsg(data)
-
-                self.update_channel_info(initial_data)
+                # Handle messages
+                self.handle_messages(data)
 
             except Exception as e:
                 print(f"Error while receiving data: {e}")
                 self.Connected = False
                 self.shutdown()
 
-    def update_channel_info(self,data):
-        #Updates the channel info for !savedata command
-         self.channel_info[self.channel] = {
-            'user': self.nick,
-            'Current users': self.current_users,
-            'channel': self.channel,
-            'timestamp': time.time(),
-            'server_response': data.strip() #Initial data when bot joined channel
-        }
-    
+    def handle_topic(self, data):
+        print(f"Channel topic: {data.strip()}")
+
+    def handle_names(self, data):
+        print(f"Names list: {data.strip()}")
+        # Extract and update the current users in the channel
+        names = data.split(':')[-1].strip().split()
+        self.current_users = names
+
+    def handle_end_of_names(self, data):
+        print(f"End of names list: {data.strip()}")
+
     def send_message(self, message):
         try:
             # Ensure the message is sent to the channel
@@ -132,18 +126,17 @@ class Bot:
                 with open(self.jokes_file, "r") as readjoke:
                     jokedata = readjoke.read().splitlines()
                     if jokedata:
-                        joke = random.choice(jokedata)
-                        self.s.send(f"PRIVMSG {sender} :{joke}\r\n".encode('utf-8'))
-                        print(f"Sent a joke to {sender}: {joke}")
+                        joke = jokedata[0]
+                        self.send_message(f"Here's a joke for you, {sender}: {joke}")
                     else:
-                        self.send_message(f"Sorry {sender}, I have no jokes to share right now.")
+                        self.send_message(f"Sorry {sender}, I couldn't find any jokes.")
             else:
                 self.send_message(f"Sorry {sender}, I couldn't find the jokes file.")
 
         elif message.startswith(self.command_prefix):  # If it's a command
             parts = message[len(self.command_prefix):].strip().split()
 
-            #input validation for if parts list is empty E.G the user inputs "!"
+            # Input validation for if parts list is empty E.G the user inputs "!"
             if len(parts) == 0:
                 self.send_message(f"Unknown Command, use !help for a list of the commands.")
                 return
@@ -198,32 +191,30 @@ class Bot:
                         self.send_message("Usage: !privmsg <user> <message>")
 
                 case "slap":
-                    #Calls on user_Search method to get list of users in the channel
+                    # Calls on user_Search method to get list of users in the channel
                     user_list = self.user_search()
                     if len(args) >= 1:
                         user = args[0]
                         
-                        #Input Validations for Slap command
-                        #If slap victim is either the bot or sender
+                        # Input Validations for Slap command
+                        # If slap victim is either the bot or sender
                         if user.lower() == self.nick.lower() or user.lower() == sender.lower():
                             response = "I can't slap myself or the sender!"
                         
-                        #If user is found in user_list
+                        # If user is found in user_list
                         elif user.lower() in [u.lower() for u in user_list]:
                             response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"
                         
-                        #If user is not found in user_list
+                        # If user is not found in user_list
                         else:
                             response = f"\x01ACTION slaps {sender} because {user} is not a user in the server\x01"
                     else:
-                        #If user list contains only user and bot
+                        # If user list contains only user and bot
                         if len(user_list) <= 2:
                             response = "There is no valid target to slap because only me and the sender exist in the channel"
-                        
-                        #Chooses random user from user list
                         else:
-                            target = random.choice([u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()])
-                            response = f"\x01ACTION slaps {target} around a bit with a large trout\x01"
+                            response = f"\x01ACTION slaps {user_list[0]} around a bit with a large trout\x01"
+                            
                     self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                     print(f"Sent slap action for {user if len(args) >= 1 else target}")
 
@@ -240,9 +231,6 @@ class Bot:
                 response = f"You're so right, {sender}! You're so amazing!"
                 self.send_message(response)
                 self.last_channel_message_time = time.time()
-
- 
-
 
     def shutdown(self):
         try:
@@ -262,13 +250,12 @@ class Bot:
         try:
             while True:
                 data = self.s.recv(2048).decode('utf-8')
-                match = re.search(r"353 .* = .* :(.*)", data) #Reads data after 353 which indicates start of user list
+                match = re.search(r"353 .* = .* :(.*)", data)  # Reads data after 353 which indicates start of user list
 
                 if match:
-                    users = match.group(1).split()
-                    user_list.extend(users)
+                    user_list.extend(match.group(1).split())
 
-                if ' 366 ' in data:  # 366 code indicates end of user list
+                if ' 366 ' in data:  # End of names list
                     break
         except socket.timeout:
             print("Timeout while fetching user list.")
