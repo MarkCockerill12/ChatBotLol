@@ -56,17 +56,21 @@ class Client:
 
 class Channel:
     def __init__(self):
-        self.clients = {} # will be dictionary of users in the channel, key as NICK and value of client class
+        self.clients = {}  # Dictionary of clients in the channel, key is the nickname, value is the Client object
     
     def addClient(self, client):
+        """Adds a client to the channel's client list."""
         self.clients[client.getNick()] = client
-
+    
     def removeClient(self, client):
-        removedClient = self.clients.pop(client.getNick())
-        return removedClient
-
+        """Removes a client from the channel's client list."""
+        if client.getNick() in self.clients:
+            del self.clients[client.getNick()]
+    
     def getListofClients(self):
-        return self.clients.keys()
+        """Returns the list of clients currently in the channel."""
+        return self.clients.values()
+
 
 
 class Server:
@@ -217,7 +221,7 @@ class Server:
         
         if channel not in self.channels:
             self.channels[channel] = Channel()
-            
+
         if self.tempClient is None:
             raise ValueError("No client provided.")
         self.channels[channel].addClient(self.clients)
