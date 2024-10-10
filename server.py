@@ -174,10 +174,6 @@ class Server:
 
     def NICK(self, nickname: str):
         if self.newClient:
-            if nickname in self.clients:
-                    print(f"Error: Nickname {nickname} is already in use.")
-                    self.sendData(":%s :Nickname is already in use" % (nickname), self.clients[nickname])
-                    return
             # Ensure the temporary client exists in the dictionary before changing its nickname
             if "temp" in self.clients:
                 # Add client to the dictionary with new nickname
@@ -208,8 +204,12 @@ class Server:
         if channel not in self.channels:
             self.channels[channel] = Channel()
 
-        self.channels[channel].addClient(self.clients[client_name])
-        print(f"{client_name} has joined {channel}")
+        if client_name in self.channels[channel].clients:
+            print(f"{client_name} is already in {channel}")
+            return
+        else:
+            self.channels[channel].addClient(self.clients[client_name])
+            print(f"{client_name} has joined {channel}")
 
         # Send confirmation to the client
         join_message = f":{client_name}!{client_name}@localhost JOIN {channel}\r\n"
