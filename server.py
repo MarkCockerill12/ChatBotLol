@@ -91,7 +91,7 @@ class Server:
                     parts = receiveData.split()
                     if len(parts) > 2 and parts[1].startswith("#"):
                         channel = parts[1]
-                        message = ' '.join(parts[2:])[1:]  # Extract the message part
+                        message = ' '.join(parts[3:])[1:]  # Extract the message part
                         self.broadcast(message, self.client, channel)  # Broadcast to the specific channel
                     else:
                         message = ' '.join(parts[2:])[1:]  # Extract the message part
