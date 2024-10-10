@@ -102,7 +102,7 @@ class Server:
 
                     if response:  # Ensure response is not None
                         self.sendData(response, self.clients[self.client])
-                    #self.broadcast(receiveData, self.client)  # Broadcast to all clients
+                    self.broadcast(receiveData, self.client)  # Broadcast to all clients
                 return receiveData
         except socket.error as e:
             print(f"Error receiving data: {e}")
