@@ -90,20 +90,19 @@ class Server:
 
     def receiveData(self, readable: socket.socket):
         try:
-            receiveData = readable.recv(1024).decode("utf-8")
+            receiveData = readable.recv(1024).decode()
             if receiveData:
                 self.tennis = True
                 self.timeFirst = time.time()
                 # Check if the message is channel-specific
-                print(f"Received data: {receiveData}")
                 if receiveData.startswith("PRIVMSG"):
                     parts = receiveData.split()
                     if len(parts) > 2 and parts[1].startswith("#"):
                         channel = parts[1]
-                        message = ' '.join(parts[2:]).lstrip(':')  # Extract the message part correctly
+                        message = ' '.join(parts[2:])[1:]  # Extract the message part correctly
                         self.broadcast(message, self.client, channel)  # Broadcast to the specific channel
                     else:
-                        message = ' '.join(parts[2:]).lstrip(':')  # Extract the message part correctly
+                        message = ' '.join(parts[2:])[1:]  # Extract the message part correctly
                         self.broadcast(message, self.client)  # Broadcast to all clients
                 else:
                     self.broadcast(receiveData, self.client)  # Broadcast to all clients
@@ -130,6 +129,8 @@ class Server:
             elif s == "PONG":
                 response = self.operation(sections[i:i+1])
             elif s == "QUIT":
+                response = self.operation(sections[i:i+2])
+            elif s == "NAMES":
                 response = self.operation(sections[i:i+2])
             else:
                 continue
@@ -174,6 +175,16 @@ class Server:
                 self.JOIN(command[1], self.client)
                 print("the code is here 2")
             return None  # Return None to avoid sending "JOIN command processed"
+        
+        elif command[0] == "NAMES":
+            # Ensure a channel name is provided
+            if len(command) < 2 or not command[1]:
+                return "NOTICE %s: No channel provided" % (self.client)
+            namechannel = command[1]
+            # Check if the channel exists
+            if namechannel not in self.channels:
+                return "NOTICE %s: No such channel" % (self.client)
+            self.NAMES(namechannel,self.client)
 
         else:
             print("unknown command")
@@ -217,12 +228,8 @@ class Server:
             self.channels[channel] = Channel()
             print(f"Channel {channel} created.")
 
-        if client_name in self.channels[channel].clients:
-            print(f"{client_name} is already in {channel}")
-            return
-        else:
-            self.channels[channel].addClient(self.clients[client_name])
-            print(f"{client_name} has joined {channel}")
+        self.channels[channel].addClient(self.clients[client_name])
+        print(f"{client_name} has joined {channel}")
 
         # Send confirmation to the client
         join_message = f":{client_name}!{client_name}@localhost JOIN {channel}\r\n"
@@ -240,6 +247,18 @@ class Server:
         # End of names list
         end_names_message = f":localhost 366 {client_name} {channel} :End of /NAMES list\r\n"
         self.sendData(end_names_message, self.clients[client_name])
+
+    def NAMES(self, namechannel, client_name):
+        names = ' '.join(self.channels[namechannel].getListofClients())
+        names_message = f":localhost 353 {client_name} = {namechannel} :{names}\r\n"
+
+        end_names_message = f":localhost 366 {client_name} {namechannel} :End of /NAMES list\r\n"
+    
+        # Combine both messages into one
+        combined_message = names_message + end_names_message
+    
+        # Send the combined message to the client
+        self.sendData(combined_message, self.clients[client_name])
 
     def PING(self):
         """ Handles PING command. """
@@ -266,28 +285,26 @@ class Server:
     def broadcast(self, message, sender_nick, channel=None):
         if channel:
             # Broadcast to all clients in the specified channel
-            print(f"Broadcasting to channel {channel}: {message}")
+            print("THIS IS SENDING TO THE CHANNEL: ", channel)
             if channel in self.channels:
+                print(f"Clients in channel {channel}: {list(self.channels[channel].clients.keys())}")
                 for nick, client in self.channels[channel].clients.items():
                     if nick != sender_nick:  # Don't send the message back to the sender
                         formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {channel} :{message}\r\n"
                         self.sendData(formatted_message, client)
+                        print("THIS IS SENDING TO THE CLIENT: ", nick)
+                        print("THIS IS THE MESSAGE: ", formatted_message)
             else:
-                try:
-                    # Send command to create the channel
-                    self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
-                    print(f"Channel {self.channel} created and joined.")
-                    # Send welcome message
-                    self.send_message(f"{self.nick} created the channel {self.channel}.")
-                except Exception as e:
-                    print(f"Error creating channel: {e}")
-        #else:
-            # # Broadcast to all clients
-            # print(f"Broadcasting to all clients: {message}")
-            # for nick, client in self.clients.items():
-            #     if nick != sender_nick:  # Don't send the message back to the sender
-            #         formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
-            #         self.sendData(formatted_message, client)
+                print(f"Channel {channel} does not exist.")
+        # else:
+        #     # Broadcast to all clients
+        #     print("Broadcasting to all clients")
+        #     for nick, client in self.clients.items():
+        #         if nick != sender_nick:  # Don't send the message back to the sender
+        #             formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
+        #             self.sendData(formatted_message, client)
+        #             print("THIS IS SENDING TO THE CLIENT: ", nick)
+        #             print("THIS IS THE MESSAGE: ", formatted_message)
 
     def main(self):
         port = 6667
