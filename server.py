@@ -86,6 +86,7 @@ class Server:
                 self.tennis = True
                 self.timeFirst = time.time()
                 # Check if the message is channel-specific
+                print (f"Received data: {receiveData}")
                 if receiveData.startswith("PRIVMSG"):
                     parts = receiveData.split()
                     if len(parts) > 2 and parts[1].startswith("#"):
