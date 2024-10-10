@@ -261,7 +261,7 @@ class Server:
                 print(f"Clients in channel {channel}: {list(self.channels[channel].clients.keys())}")
                 for nick, client in self.channels[channel].clients.items():
                     if nick != sender_nick:  # Don't send the message back to the sender
-                        formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {channel} :{message}\r\n"
+                        formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {channel} : {message} \r\n"
                         self.sendData(formatted_message, client)
                         print("THIS IS SENDING TO THE CLIENT: ", nick)
                         print("THIS IS THE MESSAGE: ", formatted_message)
@@ -272,7 +272,7 @@ class Server:
             print("Broadcasting to all clients")
             for nick, client in self.clients.items():
                 if nick != sender_nick:  # Don't send the message back to the sender
-                    formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
+                    formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} : {message} \r\n"
                     self.sendData(formatted_message, client)
                     print("THIS IS SENDING TO THE CLIENT: ", nick)
                     print("THIS IS THE MESSAGE: ", formatted_message)
