@@ -85,7 +85,16 @@ class Server:
             if receiveData:
                 self.tennis = True
                 self.timeFirst = time.time()
-                self.broadcast(receiveData, self.client)  # Broadcast the received data to all clients
+                # Check if the message is channel-specific
+                if receiveData.startswith("PRIVMSG"):
+                    parts = receiveData.split()
+                    if len(parts) > 2 and parts[1].startswith("#"):
+                        channel = parts[1]
+                        self.broadcast(receiveData, self.client, channel)  # Broadcast to the specific channel
+                    else:
+                        self.broadcast(receiveData, self.client)  # Broadcast to all clients
+                else:
+                    self.broadcast(receiveData, self.client)  # Broadcast to all clients
                 return receiveData
         except socket.error as e:
             print(f"Error receiving data: {e}")
@@ -165,20 +174,26 @@ class Server:
 
     def NICK(self, nickname: str):
         if self.newClient:
-            # Add client to the dictionary
-            self.clients[nickname] = Client(nickname)
-            self.clients.pop(self.tempClient.getNick())
-            self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
-            self.tempClient.setSocketObj(None)
-
-            self.clients[nickname].updateNick(nickname)
-            welcome_message = "CAP * LS :"
-            self.sendData(welcome_message, self.clients[nickname])
-            print(f"Nickname set to: {nickname}")
-
+            # Ensure the temporary client exists in the dictionary before changing its nickname
+            if "temp" in self.clients:
+                # Add client to the dictionary with new nickname
+                self.clients[nickname] = self.clients.pop("temp")
+                self.clients[nickname].updateNick(nickname)
+                self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
+                
+                welcome_message = "CAP * LS :"
+                self.sendData(welcome_message, self.clients[nickname])
+                print(f"Nickname set to: {nickname}")
+            else:
+                print("Error: Temporary client not found.")
         else:
-            self.clients[self.client].updateNick(nickname)
-            self.clients[nickname] = self.clients.pop(self.client)
+            # Update the existing client's nickname
+            if self.client in self.clients:
+                self.clients[self.client].updateNick(nickname)
+                self.clients[nickname] = self.clients.pop(self.client)
+            else:
+                print(f"Error: Client {self.client} not found.")
+
 
     def USER(self, username: str, realname: str):  # as host name and server name are not used for this project, they are ignored.
         self.clients[username].setUser([username, realname[1:]])
@@ -231,10 +246,17 @@ class Server:
             readable.append(client.getSocketObj())  # In same order as clients dictionary
         return readable
 
-    def broadcast(self, message, sender_nick):
-        for nick, client in self.clients.items():
-            if nick != sender_nick:  # Don't send the message back to the sender
-                self.sendData(message, client)
+    def broadcast(self, message, sender_nick, channel=None):
+        if channel:
+            # Broadcast to all clients in the specified channel
+            for nick, client in self.channels[channel].clients.items():
+                if nick != sender_nick:  # Don't send the message back to the sender
+                    self.sendData(message, client)
+        else:
+            # Broadcast to all clients
+            for nick, client in self.clients.items():
+                if nick != sender_nick:  # Don't send the message back to the sender
+                    self.sendData(message, client)
 
     def main(self):
         port = 6667
@@ -292,7 +314,16 @@ class Server:
 
                     if response:  # Ensure response is not None
                         self.sendData(response, self.clients[currentClient])
-                        self.broadcast(response, currentClient)  # Broadcast the response to all clients
+                        # Check if the response is channel-specific
+                        if response.startswith("PRIVMSG"):
+                            parts = response.split()
+                            if len(parts) > 2 and parts[1].startswith("#"):
+                                channel = parts[1]
+                                self.broadcast(response, currentClient, channel)  # Broadcast to the specific channel
+                            else:
+                                self.broadcast(response, currentClient)  # Broadcast to all clients
+                        else:
+                            self.broadcast(response, currentClient)  # Broadcast to all clients
                 except Exception as e:
                     print(f"Error: {e}")
 
