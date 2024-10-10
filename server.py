@@ -173,6 +173,10 @@ class Server:
         removedClient.getSocketObj().close()
 
     def NICK(self, nickname: str):
+        if nickname in self.clients:
+            print(f"Error: Nickname {nickname} is already in use.")
+            self.sendData(":%s :Nickname is already in use" % (nickname), self.clients[nickname])
+            return
         if self.newClient:
             # Ensure the temporary client exists in the dictionary before changing its nickname
             if "temp" in self.clients:
