@@ -2,7 +2,6 @@ import socket
 import select
 import time
 
-
 class Client:
     def __init__(self, NICK=""):
         self.ping = False
@@ -45,21 +44,22 @@ class Client:
         self.tennis = b
         self.ping = b
 
-
 class Channel:
     def __init__(self):
-        self.clients = {}  # will be dictionary of users in the channel, key as NICK and value of client class
+        self.clients = {}  # Dictionary of users in the channel, key as NICK and value as Client object
 
     def addClient(self, client):
         self.clients[client.getNick()] = client
+        print(f"Client {client.getNick()} added to channel")
 
     def removeClient(self, client):
-        removedClient = self.clients.pop(client.getNick())
+        removedClient = self.clients.pop(client.getNick(), None)
+        if removedClient:
+            print(f"Client {client.getNick()} removed from channel")
         return removedClient
 
     def getListofClients(self):
         return self.clients.keys()
-
 
 class Server:
     def sendData(self, data, client: Client):
@@ -90,9 +90,11 @@ class Server:
                     parts = receiveData.split()
                     if len(parts) > 2 and parts[1].startswith("#"):
                         channel = parts[1]
-                        self.broadcast(receiveData, self.client, channel)  # Broadcast to the specific channel
+                        message = ' '.join(parts[3:])[1:]  # Extract the message part
+                        self.broadcast(message, self.client, channel)  # Broadcast to the specific channel
                     else:
-                        self.broadcast(receiveData, self.client)  # Broadcast to all clients
+                        message = ' '.join(parts[2:])[1:]  # Extract the message part
+                        self.broadcast(message, self.client)  # Broadcast to all clients
                 else:
                     self.broadcast(receiveData, self.client)  # Broadcast to all clients
                 return receiveData
@@ -194,7 +196,6 @@ class Server:
             else:
                 print(f"Error: Client {self.client} not found.")
 
-
     def USER(self, username: str, realname: str):  # as host name and server name are not used for this project, they are ignored.
         self.clients[username].setUser([username, realname[1:]])
 
@@ -203,6 +204,7 @@ class Server:
             raise ValueError("No channel provided.")
         if channel not in self.channels:
             self.channels[channel] = Channel()
+            print(f"Channel {channel} created.")
 
         self.channels[channel].addClient(self.clients[client_name])
         print(f"{client_name} has joined {channel}")
@@ -249,14 +251,26 @@ class Server:
     def broadcast(self, message, sender_nick, channel=None):
         if channel:
             # Broadcast to all clients in the specified channel
-            for nick, client in self.channels[channel].clients.items():
-                if nick != sender_nick:  # Don't send the message back to the sender
-                    self.sendData(message, client)
+            print("THIS IS SENDING TO THE CHANNEL: ", channel)
+            if channel in self.channels:
+                print(f"Clients in channel {channel}: {list(self.channels[channel].clients.keys())}")
+                for nick, client in self.channels[channel].clients.items():
+                    if nick != sender_nick:  # Don't send the message back to the sender
+                        formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {channel} :{message}\r\n"
+                        self.sendData(formatted_message, client)
+                        print("THIS IS SENDING TO THE CLIENT: ", nick)
+                        print("THIS IS THE MESSAGE: ", formatted_message)
+            else:
+                print(f"Channel {channel} does not exist.")
         else:
             # Broadcast to all clients
+            print("Broadcasting to all clients")
             for nick, client in self.clients.items():
                 if nick != sender_nick:  # Don't send the message back to the sender
-                    self.sendData(message, client)
+                    formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
+                    self.sendData(formatted_message, client)
+                    print("THIS IS SENDING TO THE CLIENT: ", nick)
+                    print("THIS IS THE MESSAGE: ", formatted_message)
 
     def main(self):
         port = 6667
@@ -333,10 +347,9 @@ class Server:
         self.tennis = False
         self.timeDifference = 0
         self.timeFirst = time.time()
-        self.channels = {}  # will be dictionary of channel classes with key as channel name and value as class
-        self.clients = {}  # will be dictionary of users in the server, key as NICK and value of client class
+        self.channels = {}  # Dictionary of channel classes with key as channel name and value as class
+        self.clients = {}  # Dictionary of users in the server, key as NICK and value of client class
         self.main()
-
 
 if __name__ == "__main__":
     test = Server()
