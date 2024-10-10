@@ -19,6 +19,7 @@ class Bot:
         self.jokes_file = "jokes.txt"
         self.startup_time = time.time()  # To track uptime
         self.current_users = []
+    
 
     def handle_messages(self, data):
         if "PRIVMSG" in data:
@@ -58,11 +59,14 @@ class Bot:
             # Wait for server response to confirm join
             while True:
                 data = self.s.recv(1024).decode('utf-8')
+                
+
                 print(f"Server Response: {data.strip()}")
                 if f"JOIN {self.channel}" in data:
                     print(f"Successfully joined channel {self.channel}")
                     # Send welcome message
                     self.send_message(f"Hello everyone! I'm {self.nick}. Type !help to see what I can do.")
+                    
                     break
                 elif "ERR_NOSUCHCHANNEL" in data:
                     print(f"Channel {self.channel} does not exist. Creating channel...")
@@ -100,6 +104,14 @@ class Bot:
                     ping_response = data.split()[1]
                     self.s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
                     print(f"Sent PONG response to {ping_response}")
+
+                self.channel_info[self.channel] = {
+                        'user': self.nick,
+                        'user list': self.user_search(),
+                        'channel': self.channel,
+                        'timestamp': time.time(),
+                        'server_response': data.strip()
+                    }
 
                 # Handle messages
                 self.handle_messages(data)
@@ -184,6 +196,8 @@ class Bot:
                         time.sleep(0.5)
 
                 case "savedata":
+                    
+
                     if self.channel in self.channel_info:
                         response = f"Stored channel information: {self.channel_info[self.channel]}"
                     else:
@@ -217,13 +231,14 @@ class Bot:
                         elif user.lower() in [u.lower() for u in user_list]:
                             response = f"{sender} slaps {user} around a bit with a large trout!"
                         else:
-                            response = f"User {user} not found."
+                            response = f")slaps {sender} around a bit with a large trout for not specifying a user currently in the channel!"
                     else:
                         # If user list contains only user and bot
                         if len(user_list) <= 2:
                             response = "No one to slap!"
                         else:
-                            response = f"{sender} slaps everyone around a bit with a large trout!"
+                            random_user = random.choice(user_list)
+                            response = f"{sender} slaps {random_user} around a bit with a large trout!"
                             
                     self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                     print(f"Sent slap action for {user if len(args) >= 1 else target}")
