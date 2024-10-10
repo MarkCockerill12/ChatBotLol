@@ -174,20 +174,26 @@ class Server:
 
     def NICK(self, nickname: str):
         if self.newClient:
-            # Add client to the dictionary
-            self.clients[nickname] = Client(nickname)
-            self.clients.pop(self.tempClient.getNick())
-            self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
-            self.tempClient.setSocketObj(None)
-
-            self.clients[nickname].updateNick(nickname)
-            welcome_message = "CAP * LS :"
-            self.sendData(welcome_message, self.clients[nickname])
-            print(f"Nickname set to: {nickname}")
-
+            # Ensure the temporary client exists in the dictionary before changing its nickname
+            if "temp" in self.clients:
+                # Add client to the dictionary with new nickname
+                self.clients[nickname] = self.clients.pop("temp")
+                self.clients[nickname].updateNick(nickname)
+                self.clients[nickname].setSocketObj(self.tempClient.getSocketObj())
+                
+                welcome_message = "CAP * LS :"
+                self.sendData(welcome_message, self.clients[nickname])
+                print(f"Nickname set to: {nickname}")
+            else:
+                print("Error: Temporary client not found.")
         else:
-            self.clients[self.client].updateNick(nickname)
-            self.clients[nickname] = self.clients.pop(self.client)
+            # Update the existing client's nickname
+            if self.client in self.clients:
+                self.clients[self.client].updateNick(nickname)
+                self.clients[nickname] = self.clients.pop(self.client)
+            else:
+                print(f"Error: Client {self.client} not found.")
+
 
     def USER(self, username: str, realname: str):  # as host name and server name are not used for this project, they are ignored.
         self.clients[username].setUser([username, realname[1:]])
