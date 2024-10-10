@@ -194,10 +194,21 @@ class Bot:
                     if len(args) > 1:
                         user = args[0]
                         priv_message = ' '.join(args[1:])
-                        if user.lower() == self.nick.lower():
-                            self.send_message("I can't send private messages to myself!")
+                        if user.lower() == self.nick.lower():  
+                            if os.path.exists(self.jokes_file):
+                                with open(self.jokes_file, "r") as readjoke:
+                                    jokedata = readjoke.read().splitlines()
+                                    if jokedata:
+                                        self.send_message(random.choice(jokedata))
+                                    else:
+                                        self.send_message(f"Sorry {sender}, I couldn't find any jokes.")
+                            else:
+                                self.send_message(f"Sorry {sender}, I couldn't find the jokes file.")
                         elif user.lower() in self.user_search():
+                            print(user)
+                            print(priv_message)
                             self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
+                            print("the problem is here 1")
                             print(f"Sent private message to {user}: {priv_message}")
                         else:
                             self.send_message(f"User {user} not found.")
@@ -205,28 +216,29 @@ class Bot:
                         self.send_message("Usage: !privmsg <user> <message>")
 
                 case "slap":
-                    # Calls on user_Search method to get list of users in the channel
-                    user_list = self.user_search()
-                    if len(args) >= 1:
-                        user = args[0]
-                        
-                        # Input Validations for Slap command
-                        # If slap victim is either the bot or sender
-                        if user.lower() == self.nick.lower() or user.lower() == sender.lower():
-                            response = "I can't slap myself or the sender!"
-                        elif user.lower() in [u.lower() for u in user_list]:
-                            response = f"{sender} slaps {user} around a bit with a large trout!"
+                        # Calls on user_search method to get list of users in the channel
+                        user_list = self.user_search()
+                        user = None  # Initialize user variable
+                        if len(args) >= 1:
+                            user = args[0]
+                            # Input Validations for Slap command
+                            if user.lower() == self.nick.lower() or user.lower() == sender.lower():
+                                response = "I can't slap myself or the sender!"
+                            elif user.lower() in [u.lower() for u in user_list]:
+                                response = f"{self.nick} slaps {user} around a bit with a large trout!"
+                            else:
+                                response = f"{self.nick} slaps {sender} because {user} isnt a user!"
                         else:
-                            response = f"User {user} not found."
-                    else:
-                        # If user list contains only user and bot
-                        if len(user_list) <= 2:
-                            response = "No one to slap!"
-                        else:
-                            response = f"{sender} slaps everyone around a bit with a large trout!"
-                            
-                    self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
-                    print(f"Sent slap action for {user if len(args) >= 1 else target}")
+                            # If no user is specified
+                            # Exclude the bot and the sender from the list of potential victims
+                            potential_victims = [u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()]
+                            if potential_victims:
+                                random_user = random.choice(potential_victims)
+                                response = f"{self.nick} slaps {random_user} around a bit with a large trout!"
+                            else:
+                                response = "No one to slap!"
+                        self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
+                        print(f"Sent slap action for {user if user else 'random user'}")
 
                 case "uptime":
                     uptime = time.time() - self.startup_time
