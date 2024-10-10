@@ -6,7 +6,7 @@ import re
 import random
 
 class Bot:
-    def __init__(self, server="::1", port=6667, nick="BotLol", channel="#Test"):
+    def __init__(self, server="::1", port=6667, nick="SuperBot", channel="#hello"):
         self.server = server
         self.port = port
         self.nick = nick
@@ -64,11 +64,25 @@ class Bot:
                     # Send welcome message
                     self.send_message(f"Hello everyone! I'm {self.nick}. Type !help to see what I can do.")
                     break
+                elif "ERR_NOSUCHCHANNEL" in data:
+                    print(f"Channel {self.channel} does not exist. Creating channel...")
+                    self.create_channel()
+                    break
                 elif "ERR" in data:
                     print(f"Error joining channel: {data.strip()}")
                     break
         except Exception as e:
             print(f"Error joining channel: {e}")
+
+    def create_channel(self):
+        try:
+            # Send command to create the channel
+            self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
+            print(f"Channel {self.channel} created and joined.")
+            # Send welcome message
+            self.send_message(f"Hello everyone! I'm {self.nick}. Type !help to see what I can do.")
+        except Exception as e:
+            print(f"Error creating channel: {e}")
 
     def running_bot(self):
         while self.Connected:
@@ -223,10 +237,8 @@ class Bot:
                     self.send_message(f"Unknown command, {sender}. Try !help for a list of commands.")
 
         else:
-            if target.lower() == self.channel.lower() and time.time() - self.last_channel_message_time > 30:  # Random reply to non-command message, 30s cooldown
                 response = f"You're so right, {sender}! You're so amazing!"
                 self.send_message(response)
-                self.last_channel_message_time = time.time()
 
     def shutdown(self):
         try:

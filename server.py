@@ -95,7 +95,7 @@ class Server:
                 self.tennis = True
                 self.timeFirst = time.time()
                 # Check if the message is channel-specific
-                print (f"Received data: {receiveData}")
+                print(f"Received data: {receiveData}")
                 if receiveData.startswith("PRIVMSG"):
                     parts = receiveData.split()
                     if len(parts) > 2 and parts[1].startswith("#"):
@@ -266,26 +266,28 @@ class Server:
     def broadcast(self, message, sender_nick, channel=None):
         if channel:
             # Broadcast to all clients in the specified channel
-            print("THIS IS SENDING TO THE CHANNEL: ", channel)
+            print(f"Broadcasting to channel {channel}: {message}")
             if channel in self.channels:
-                print(f"Clients in channel {channel}: {list(self.channels[channel].clients.keys())}")
                 for nick, client in self.channels[channel].clients.items():
                     if nick != sender_nick:  # Don't send the message back to the sender
-                        formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {channel} : {message} \r\n"
+                        formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {channel} :{message}\r\n"
                         self.sendData(formatted_message, client)
-                        print("THIS IS SENDING TO THE CLIENT: ", nick)
-                        print("THIS IS THE MESSAGE: ", formatted_message)
             else:
-                print(f"Channel {channel} does not exist.")
-        else:
-            # Broadcast to all clients
-            print("Broadcasting to all clients")
-            for nick, client in self.clients.items():
-                if nick != sender_nick:  # Don't send the message back to the sender
-                    formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} : {message} \r\n"
-                    self.sendData(formatted_message, client)
-                    print("THIS IS SENDING TO THE CLIENT: ", nick)
-                    print("THIS IS THE MESSAGE: ", formatted_message)
+                try:
+                    # Send command to create the channel
+                    self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
+                    print(f"Channel {self.channel} created and joined.")
+                    # Send welcome message
+                    self.send_message(f"{self.nick} created the channel {self.channel}.")
+                except Exception as e:
+                    print(f"Error creating channel: {e}")
+        #else:
+            # # Broadcast to all clients
+            # print(f"Broadcasting to all clients: {message}")
+            # for nick, client in self.clients.items():
+            #     if nick != sender_nick:  # Don't send the message back to the sender
+            #         formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
+            #         self.sendData(formatted_message, client)
 
     def main(self):
         port = 6667
