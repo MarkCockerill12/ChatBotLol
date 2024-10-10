@@ -81,12 +81,12 @@ class Server:
 
     def receiveData(self, readable: socket.socket):
         try:
-            receiveData = readable.recv(1024).decode()
+            receiveData = readable.recv(1024).decode("utf-8")
             if receiveData:
                 self.tennis = True
                 self.timeFirst = time.time()
                 # Check if the message is channel-specific
-                if receiveData.startswith("PRIVMSG"):
+                if receiveData.startswith("Hello"):
                     parts = receiveData.split()
                     if len(parts) > 2 and parts[1].startswith("#"):
                         channel = parts[1]
