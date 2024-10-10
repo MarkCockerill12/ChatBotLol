@@ -76,8 +76,17 @@ class Server:
             print(f"AttributeError: {e} - Data: {data} (type: {type(data)})")
         except Exception as e:
             print(f"Error: {e} - Data: {data} (type: {type(data)})")
-        except socket.error as e:
-            print(f"Error sending data: {e}")
+            self.removeClient(client)
+
+    def removeClient(self, client: Client):
+        try:
+            client.getSocketObj().close()
+        except Exception as e:
+            print(f"Error closing socket for client {client.getNick()}: {e}")
+        finally:
+            if client.getNick() in self.clients:
+                del self.clients[client.getNick()]
+                print(f"Client {client.getNick()} removed from server.")
 
     def receiveData(self, readable: socket.socket):
         try:
@@ -186,6 +195,7 @@ class Server:
                 welcome_message = "CAP * LS :"
                 self.sendData(welcome_message, self.clients[nickname])
                 print(f"Nickname set to: {nickname}")
+                return f"NICK set successfully {nickname}"  # return message with new nickname
             else:
                 print("Error: Temporary client not found.")
         else:
@@ -312,21 +322,11 @@ class Server:
                             break
                     response = self.checkCommand(self.receiveData(con))
                 try:
-                    match response:
-                        case "ERR_ERRONEUSNICKNAME":
-                            response = ":%s :Erroneus nickname" % (self.tempClient.getNick())
-                        case "ERR_NICKNAMEINUSE":
-                            response = ":%s :Nickname is already in use" % (self.tempClient.getNick())
-                        case "ERR_NEEDMOREPARAMS":
-                            response = ":%s :Not enough parameters" % (self.tempClient.getNick())
-                        case "ERR_TOOMANYARGUMENTS":
-                            response = ":%s :Too many arguments" % (self.tempClient.getNick())
-                        case "ERR_INCORRECTFORMAT":
-                            response = ":%s :Incorrect format" % (self.tempClient.getNick())
-                        case "JOIN":
-                            self.JOIN(response.split()[1], currentClient)
-
                     if response:  # Ensure response is not None
+                        if currentClient == "temp" and response.startswith("NICK set successfully"):
+                            currentClient = response.split()[-1]  # Extract the new nickname
+                            self.client = currentClient  # Update the client attribute
+
                         self.sendData(response, self.clients[currentClient])
                         # Check if the response is channel-specific
                         if response.startswith("PRIVMSG"):
@@ -338,8 +338,12 @@ class Server:
                                 self.broadcast(response, currentClient)  # Broadcast to all clients
                         else:
                             self.broadcast(response, currentClient)  # Broadcast to all clients
+                except KeyError as e:
+                    print(f"KeyError: {e} - Client {currentClient} not found.")
                 except Exception as e:
                     print(f"Error: {e}")
+                    if currentClient in self.clients:
+                        self.removeClient(self.clients[currentClient])
 
                 self.tennis = False
 

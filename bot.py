@@ -3,6 +3,7 @@ import time
 import argparse
 import os
 import re
+import random
 
 class Bot:
     def __init__(self, server="::1", port=6667, nick="BotLol", channel="#Test"):
@@ -126,8 +127,7 @@ class Bot:
                 with open(self.jokes_file, "r") as readjoke:
                     jokedata = readjoke.read().splitlines()
                     if jokedata:
-                        joke = jokedata[0]
-                        self.send_message(f"Here's a joke for you, {sender}: {joke}")
+                        self.send_message(random.choice(jokedata))
                     else:
                         self.send_message(f"Sorry {sender}, I couldn't find any jokes.")
             else:
@@ -200,20 +200,16 @@ class Bot:
                         # If slap victim is either the bot or sender
                         if user.lower() == self.nick.lower() or user.lower() == sender.lower():
                             response = "I can't slap myself or the sender!"
-                        
-                        # If user is found in user_list
                         elif user.lower() in [u.lower() for u in user_list]:
-                            response = f"\x01ACTION slaps {user} around a bit with a large trout\x01"
-                        
-                        # If user is not found in user_list
+                            response = f"{sender} slaps {user} around a bit with a large trout!"
                         else:
-                            response = f"\x01ACTION slaps {sender} because {user} is not a user in the server\x01"
+                            response = f"User {user} not found."
                     else:
                         # If user list contains only user and bot
                         if len(user_list) <= 2:
-                            response = "There is no valid target to slap because only me and the sender exist in the channel"
+                            response = "No one to slap!"
                         else:
-                            response = f"\x01ACTION slaps {user_list[0]} around a bit with a large trout\x01"
+                            response = f"{sender} slaps everyone around a bit with a large trout!"
                             
                     self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                     print(f"Sent slap action for {user if len(args) >= 1 else target}")
@@ -241,6 +237,9 @@ class Bot:
                 print("Socket was never created.")
         except Exception as e:
             print(f"Error while closing socket: {e}")
+        finally:
+            self.Connected = False
+            print("Bot has been shut down.")
 
     def user_search(self):
         user_list = []
@@ -255,7 +254,7 @@ class Bot:
                 if match:
                     user_list.extend(match.group(1).split())
 
-                if ' 366 ' in data:  # End of names list
+                if ' 366 ' in data:                    
                     break
         except socket.timeout:
             print("Timeout while fetching user list.")
