@@ -12,6 +12,7 @@ class Bot:
         self.nick = nick
         self.channel = channel
         self.channel_info = {}
+        self.initial_data = ""
         self.Connected = False
         self.s = None
         self.command_prefix = "!"
@@ -19,6 +20,7 @@ class Bot:
         self.jokes_file = "jokes.txt"
         self.startup_time = time.time()  # To track uptime
         self.current_users = []
+        
     
 
     def handle_messages(self, data):
@@ -53,12 +55,15 @@ class Bot:
             self.shutdown()
 
     def join_channel(self):
+        
+
         try:
             self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
             print(f"Bot joining channel {self.channel}")
             # Wait for server response to confirm join
             while True:
                 data = self.s.recv(1024).decode('utf-8')
+                self.initial_data = data
                 
 
                 print(f"Server Response: {data.strip()}")
@@ -105,13 +110,7 @@ class Bot:
                     self.s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
                     print(f"Sent PONG response to {ping_response}")
 
-                self.channel_info[self.channel] = {
-                        'user': self.nick,
-                        'user list': self.user_search(),
-                        'channel': self.channel,
-                        'timestamp': time.time(),
-                        'server_response': data.strip()
-                    }
+              
 
                 # Handle messages
                 self.handle_messages(data)
@@ -196,7 +195,15 @@ class Bot:
                         time.sleep(0.5)
 
                 case "savedata":
-                    
+
+                    self.channel_info[self.channel] = {
+                        'user': self.nick,
+                        'user list': self.user_search(),
+                        'channel': self.channel,
+                        'timestamp': time.time(),
+                        'server_response': data.strip(),
+                        'initial_data': self.initial_data
+                    }
 
                     if self.channel in self.channel_info:
                         response = f"Stored channel information: {self.channel_info[self.channel]}"
@@ -238,7 +245,11 @@ class Bot:
                             response = "No one to slap!"
                         else:
                             random_user = random.choice(user_list)
-                            response = f"{sender} slaps {random_user} around a bit with a large trout!"
+                            if random_user == sender:
+                                 response = f"{sender} trips over and slaps themselves with a large trout!"
+                            else:
+                                response = f"{sender} slaps {random_user} around a bit with a large trout!"
+                            
                             
                     self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
                     print(f"Sent slap action for {user if len(args) >= 1 else target}")
@@ -247,6 +258,7 @@ class Bot:
                     uptime = time.time() - self.startup_time
                     uptime_str = time.strftime("%H:%M:%S", time.gmtime(uptime))
                     self.send_message(f"I've been running for {uptime_str}.")
+
 
                 case _:
                     self.send_message(f"Unknown command, {sender}. Try !help for a list of commands.")
