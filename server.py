@@ -174,12 +174,12 @@ class Server:
 
     def NICK(self, nickname: str):
         if self.newClient:
-            # Ensure the temporary client exists in the dictionary before changing its nickname
-            if "temp" in self.clients:
-                if nickname in self.clients:
+            if nickname in self.clients:
                     print(f"Error: Nickname {nickname} is already in use.")
                     self.sendData(":%s :Nickname is already in use" % (nickname), self.clients[nickname])
                     return
+            # Ensure the temporary client exists in the dictionary before changing its nickname
+            if "temp" in self.clients:
                 # Add client to the dictionary with new nickname
                 self.clients[nickname] = self.clients.pop("temp")
                 self.clients[nickname].updateNick(nickname)
