@@ -138,15 +138,15 @@ class Bot:
 
         if target.lower() == self.nick.lower():  
             if os.path.exists(self.jokes_file):
-                print(f"sending joke to {target}")
+                print(f"sending joke to {sender}")
                 with open(self.jokes_file, "r") as readjoke:
                     jokedata = readjoke.read().splitlines()
                     if jokedata:
-                        self.send_message(random.choice(jokedata))
+                        self.s.send(f"PRIVMSG {sender} :{random.choice(jokedata)}\r\n".encode('utf-8'))
                     else:
-                        self.send_message(f"Sorry {sender}, I couldn't find any jokes.")
+                        self.s.send(f"PRIVMSG {sender} :Sorry {sender}, I couldn't find any jokes.\r\n".encode('utf-8'))
             else:
-                self.send_message(f"Sorry {sender}, I couldn't find the jokes file.")
+                self.s.send(f"PRIVMSG {sender} :Sorry {sender}, I couldn't find the jokes file.\r\n".encode('utf-8'))
 
         elif message.startswith(self.command_prefix):  # If it's a command
             parts = message[len(self.command_prefix):].strip().split()
@@ -200,16 +200,13 @@ class Bot:
                                 with open(self.jokes_file, "r") as readjoke:
                                     jokedata = readjoke.read().splitlines()
                                     if jokedata:
-                                        self.send_message(random.choice(jokedata))
+                                        self.s.send(f"PRIVMSG {sender} :{random.choice(jokedata)}\r\n".encode('utf-8'))
                                     else:
-                                        self.send_message(f"Sorry {sender}, I couldn't find any jokes.")
+                                        self.s.send(f"PRIVMSG {sender} :Sorry {sender}, I couldn't find any jokes.\r\n".encode('utf-8'))
                             else:
-                                self.send_message(f"Sorry {sender}, I couldn't find the jokes file.")
+                                self.s.send(f"PRIVMSG {sender} :Sorry {sender}, I couldn't find the jokes file.\r\n".encode('utf-8'))
                         elif user.lower() in self.user_search():
-                            print(user)
-                            print(priv_message)
                             self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
-                            print("the problem is here 1")
                             print(f"Sent private message to {user}: {priv_message}")
                         else:
                             self.send_message(f"User {user} not found.")
@@ -217,29 +214,29 @@ class Bot:
                         self.send_message("Usage: !privmsg <user> <message>")
 
                 case "slap":
-                        # Calls on user_search method to get list of users in the channel
-                        user_list = self.user_search()
-                        user = None  # Initialize user variable
-                        if len(args) >= 1:
-                            user = args[0]
-                            # Input Validations for Slap command
-                            if user.lower() == self.nick.lower() or user.lower() == sender.lower():
-                                response = "I can't slap myself or the sender!"
-                            elif user.lower() in [u.lower() for u in user_list]:
-                                response = f"{self.nick} slaps {user} around a bit with a large trout!"
-                            else:
-                                response = f"{self.nick} slaps {sender} because {user} isnt a user!"
+                    # Calls on user_search method to get list of users in the channel
+                    user_list = self.user_search()
+                    user = None  # Initialize user variable
+                    if len(args) >= 1:
+                        user = args[0]
+                        # Input Validations for Slap command
+                        if user.lower() == self.nick.lower() or user.lower() == sender.lower():
+                            response = "I can't slap myself or the sender!"
+                        elif user.lower() in [u.lower() for u in user_list]:
+                            response = f"{self.nick} slaps {user} around a bit with a large trout!"
                         else:
-                            # If no user is specified
-                            # Exclude the bot and the sender from the list of potential victims
-                            potential_victims = [u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()]
-                            if potential_victims:
-                                random_user = random.choice(potential_victims)
-                                response = f"{self.nick} slaps {random_user} around a bit with a large trout!"
-                            else:
-                                response = "No one to slap!"
-                        self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
-                        print(f"Sent slap action for {user if user else 'random user'}")
+                            response = f"{self.nick} slaps {sender} because {user} isnt a user!"
+                    else:
+                        # If no user is specified
+                        # Exclude the bot and the sender from the list of potential victims
+                        potential_victims = [u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()]
+                        if potential_victims:
+                            random_user = random.choice(potential_victims)
+                            response = f"{self.nick} slaps {random_user} around a bit with a large trout!"
+                        else:
+                            response = "No one to slap!"
+                    self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
+                    print(f"Sent slap action for {user if user else 'random user'}")
 
                 case "uptime":
                     uptime = time.time() - self.startup_time
@@ -250,8 +247,8 @@ class Bot:
                     self.send_message(f"Unknown command, {sender}. Try !help for a list of commands.")
 
         else:
-                response = f"You're so right, {sender}! You're so amazing!"
-                self.send_message(response)
+            response = f"You're so right, {sender}! You're so amazing!"
+            self.send_message(response)
 
     def shutdown(self):
         try:
