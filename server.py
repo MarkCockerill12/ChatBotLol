@@ -143,6 +143,8 @@ class Server:
             elif s == "PONG":
                 response = self.operation(sections[i:i+1])
             elif s == "QUIT":
+                nick = sections[i-1].split('!')[0][1:]  # Extract the nickname of the client quitting
+                self.currentCLient = self.clients.get(self.client)
                 response = self.operation(sections[i:i+2])
             elif s == "NAMES":
                 response = self.operation(sections[i:i+2])
@@ -215,8 +217,16 @@ class Server:
             return "ERR_UNKNOWNCOMMAND"
 
     def QUIT(self):
+        if self.currentClient is None:
+            print("Error: No client to remove.")
+            return
         removedClient = self.clients.pop(self.currentClient.getNick())
-        removedClient.getSocketObj().close()
+        if removedClient:
+            removedClient.getSocketObj().close()
+            print(f"Client {self.currentClient.getNick()} removed from server.")
+        else:
+            print(f"Error: Client {self.currentClient.getNick()} not found.")
+        
 
     def validate_nickname(self, nickname):
         user_list = self.user_search()  # Get list of users in the channel
@@ -408,6 +418,8 @@ class Server:
                 self.tennis = False
 
     def __init__(self):
+        self.clients = {}
+        self.currentClient = None
         self.tennis = False
         self.timeDifference = 0
         self.timeFirst = time.time()
