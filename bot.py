@@ -12,7 +12,6 @@ class Bot:
         self.nick = nick
         self.channel = channel
         self.channel_info = {}
-        self.initial_data = ""
         self.Connected = False
         self.s = None
         self.command_prefix = "!"
@@ -20,8 +19,6 @@ class Bot:
         self.jokes_file = "jokes.txt"
         self.startup_time = time.time()  # To track uptime
         self.current_users = []
-        
-    
 
     def handle_messages(self, data):
         if "PRIVMSG" in data:
@@ -55,23 +52,17 @@ class Bot:
             self.shutdown()
 
     def join_channel(self):
-        
-
         try:
             self.s.send(f"JOIN {self.channel}\r\n".encode('utf-8'))
             print(f"Bot joining channel {self.channel}")
             # Wait for server response to confirm join
             while True:
                 data = self.s.recv(1024).decode('utf-8')
-                self.initial_data = data
-                
-
                 print(f"Server Response: {data.strip()}")
                 if f"JOIN {self.channel}" in data:
                     print(f"Successfully joined channel {self.channel}")
                     # Send welcome message
                     self.send_message(f"Hello everyone! I'm {self.nick}. Type !help to see what I can do.")
-                    
                     break
                 elif "ERR_NOSUCHCHANNEL" in data:
                     print(f"Channel {self.channel} does not exist. Creating channel...")
@@ -110,8 +101,6 @@ class Bot:
                     self.s.send(f"PONG {ping_response}\r\n".encode('utf-8'))
                     print(f"Sent PONG response to {ping_response}")
 
-              
-
                 # Handle messages
                 self.handle_messages(data)
 
@@ -149,6 +138,7 @@ class Bot:
 
         if target.lower() == self.nick.lower():  
             if os.path.exists(self.jokes_file):
+                print(f"sending joke to {target}")
                 with open(self.jokes_file, "r") as readjoke:
                     jokedata = readjoke.read().splitlines()
                     if jokedata:
@@ -195,16 +185,6 @@ class Bot:
                         time.sleep(0.5)
 
                 case "savedata":
-
-                    self.channel_info[self.channel] = {
-                        'user': self.nick,
-                        'user list': self.user_search(),
-                        'channel': self.channel,
-                        'timestamp': time.time(),
-                        'server_response': data.strip(),
-                        'initial_data': self.initial_data
-                    }
-
                     if self.channel in self.channel_info:
                         response = f"Stored channel information: {self.channel_info[self.channel]}"
                     else:
@@ -215,10 +195,21 @@ class Bot:
                     if len(args) > 1:
                         user = args[0]
                         priv_message = ' '.join(args[1:])
-                        if user.lower() == self.nick.lower():
-                            self.send_message("I can't send private messages to myself!")
+                        if user.lower() == self.nick.lower():  
+                            if os.path.exists(self.jokes_file):
+                                with open(self.jokes_file, "r") as readjoke:
+                                    jokedata = readjoke.read().splitlines()
+                                    if jokedata:
+                                        self.send_message(random.choice(jokedata))
+                                    else:
+                                        self.send_message(f"Sorry {sender}, I couldn't find any jokes.")
+                            else:
+                                self.send_message(f"Sorry {sender}, I couldn't find the jokes file.")
                         elif user.lower() in self.user_search():
+                            print(user)
+                            print(priv_message)
                             self.s.send(f"PRIVMSG {user} :{priv_message}\r\n".encode('utf-8'))
+                            print("the problem is here 1")
                             print(f"Sent private message to {user}: {priv_message}")
                         else:
                             self.send_message(f"User {user} not found.")
@@ -226,39 +217,34 @@ class Bot:
                         self.send_message("Usage: !privmsg <user> <message>")
 
                 case "slap":
-                    # Calls on user_Search method to get list of users in the channel
-                    user_list = self.user_search()
-                    if len(args) >= 1:
-                        user = args[0]
-                        
-                        # Input Validations for Slap command
-                        # If slap victim is either the bot or sender
-                        if user.lower() == self.nick.lower() or user.lower() == sender.lower():
-                            response = "I can't slap myself or the sender!"
-                        elif user.lower() in [u.lower() for u in user_list]:
-                            response = f"{sender} slaps {user} around a bit with a large trout!"
-                        else:
-                            response = f")slaps {sender} around a bit with a large trout for not specifying a user currently in the channel!"
-                    else:
-                        # If user list contains only user and bot
-                        if len(user_list) <= 2:
-                            response = "No one to slap!"
-                        else:
-                            random_user = random.choice(user_list)
-                            if random_user == sender:
-                                 response = f"{sender} trips over and slaps themselves with a large trout!"
+                        # Calls on user_search method to get list of users in the channel
+                        user_list = self.user_search()
+                        user = None  # Initialize user variable
+                        if len(args) >= 1:
+                            user = args[0]
+                            # Input Validations for Slap command
+                            if user.lower() == self.nick.lower() or user.lower() == sender.lower():
+                                response = "I can't slap myself or the sender!"
+                            elif user.lower() in [u.lower() for u in user_list]:
+                                response = f"{self.nick} slaps {user} around a bit with a large trout!"
                             else:
-                                response = f"{sender} slaps {random_user} around a bit with a large trout!"
-                            
-                            
-                    self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
-                    print(f"Sent slap action for {user if len(args) >= 1 else target}")
+                                response = f"{self.nick} slaps {sender} because {user} isnt a user!"
+                        else:
+                            # If no user is specified
+                            # Exclude the bot and the sender from the list of potential victims
+                            potential_victims = [u for u in user_list if u.lower() != self.nick.lower() and u.lower() != sender.lower()]
+                            if potential_victims:
+                                random_user = random.choice(potential_victims)
+                                response = f"{self.nick} slaps {random_user} around a bit with a large trout!"
+                            else:
+                                response = "No one to slap!"
+                        self.s.send(f"PRIVMSG {self.channel} :{response}\r\n".encode('utf-8'))
+                        print(f"Sent slap action for {user if user else 'random user'}")
 
                 case "uptime":
                     uptime = time.time() - self.startup_time
                     uptime_str = time.strftime("%H:%M:%S", time.gmtime(uptime))
                     self.send_message(f"I've been running for {uptime_str}.")
-
 
                 case _:
                     self.send_message(f"Unknown command, {sender}. Try !help for a list of commands.")
