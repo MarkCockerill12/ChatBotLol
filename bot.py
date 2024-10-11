@@ -12,6 +12,7 @@ class Bot:
         self.nick = nick
         self.channel = channel
         self.channel_info = {}
+        self.initial_data = ""
         self.Connected = False
         self.s = None
         self.command_prefix = "!"
@@ -58,6 +59,8 @@ class Bot:
             # Wait for server response to confirm join
             while True:
                 data = self.s.recv(1024).decode('utf-8')
+                self.initial_data = data
+
                 print(f"Server Response: {data.strip()}")
                 if f"JOIN {self.channel}" in data:
                     print(f"Successfully joined channel {self.channel}")
@@ -185,6 +188,15 @@ class Bot:
                         time.sleep(0.5)
 
                 case "savedata":
+                    self.channel_info[self.channel] = {
+                        'user': self.nick,
+                        'user list': self.user_search(),
+                        'channel': self.channel,
+                        'timestamp': time.time(),
+                        'server_response': data.strip(),
+                        'initial_data': self.initial_data
+                    }
+
                     if self.channel in self.channel_info:
                         response = f"Stored channel information: {self.channel_info[self.channel]}"
                     else:
@@ -225,7 +237,7 @@ class Bot:
                         elif user.lower() in [u.lower() for u in user_list]:
                             response = f"{self.nick} slaps {user} around a bit with a large trout!"
                         else:
-                            response = f"{self.nick} slaps {sender} because {user} isnt a user!"
+                            response = f"{self.nick} slaps {sender} because {user} isnt a user in the channel!"
                     else:
                         # If no user is specified
                         # Exclude the bot and the sender from the list of potential victims
