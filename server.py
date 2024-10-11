@@ -157,6 +157,8 @@ class Server:
                     self.handlePrivmsg(sender_nick, target_nick, message)
                 else:
                     print("Incorrect format for !privmsg command.")
+            elif s == "PONG":
+                response = self.operation(sections[i:i+2])
             else:
                 continue
 
@@ -183,7 +185,11 @@ class Server:
             self.USER(command[1], command[2])
 
         elif command[0] == "PONG":
-            pass
+            self.PONG()
+            return None 
+
+
+
         elif command[0] == "QUIT":
             if command[1][0] != ":":
                 return "ERR_INCORRECTFORMAT"
@@ -210,6 +216,11 @@ class Server:
             if namechannel not in self.channels:
                 return "NOTICE %s: No such channel" % (self.client)
             self.NAMES(namechannel,self.client)
+
+        elif command[0] == "PONG":
+            self.PONG()
+            return None  # No response needed
+            
 
         else:
             print("unknown command")
@@ -307,20 +318,23 @@ class Server:
         self.sendData(combined_message, self.clients[client_name])
 
     def PING(self):
-        """ Handles PING command. """
-        self.timeFirst = time.time()
-        self.timeDifference = time.time() - self.timeFirst
-        if not self.tennis and self.timeDifference > 60:
-            self.sendData("PING %s" % (self.clients[0]))
-            print("PING sent")
-        elif not self.tennis:
-            self.timeDifference = time.time() - self.timeFirst
-            print("PING sent")
+        current_time = time.time()
+        for nick, client in self.clients.items():
+            if not client.getPing() and (current_time - self.timeFirst > 60):
+                ping_id = str(int(current_time))  # Using the current time as a unique ID
+                self.sendData(f"PING {ping_id}\r\n", client)
+                print("PING sent to:", client.getNick())
+                client.setPing(True)
+            
+            elif client.getPing():
+                # This would mean we received a PONG response
+                client.setPing(False)
+
+
+
 
     def PONG(self):
-        """ Handles PONG command. """
-        self.timeDifference = time.time() - self.timeFirst
-        print("PONG received")
+        print(f"yaay")         
 
     def addClientToReadableList(self):
         readable = []
@@ -372,6 +386,11 @@ class Server:
             readable.extend(self.addClientToReadableList())
 
             readConnection, readCommand, e = select.select(readable, writable, [], 1.0)
+
+            if not readConnection:
+                self.PING()  # Send a PING if no data is being read
+
+            
             for con in readConnection:
                 if con is self.soc:  # Adds new client to the server
                     self.newClient = True
@@ -414,6 +433,7 @@ class Server:
                     print(f"Error: {e}")
                     if currentClient in self.clients:
                         self.removeClient(self.clients[currentClient])
+
 
                 self.tennis = False
 
