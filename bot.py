@@ -138,6 +138,7 @@ class Bot:
 
         if target.lower() == self.nick.lower():  
             if os.path.exists(self.jokes_file):
+                print(f"sending joke to {target}")
                 with open(self.jokes_file, "r") as readjoke:
                     jokedata = readjoke.read().splitlines()
                     if jokedata:

@@ -1,6 +1,7 @@
 import socket
 import select
 import time
+import random
 
 class Client:
     def __init__(self, NICK=""):
@@ -103,13 +104,26 @@ class Server:
                         self.broadcast(message, self.client, channel)  # Broadcast to the specific channel
                     else:
                         message = ' '.join(parts[2:])[1:]  # Extract the message part correctly
-                        self.broadcast(message, self.client)  # Broadcast to all clients
+                        self.broadcast(message, self.client)  # Broadcast to all clients e,krbgyelfuygicbgy.iwu
                 else:
                     self.broadcast(receiveData, self.client)  # Broadcast to all clients
                 return receiveData
         except socket.error as e:
             print(f"Error receiving data: {e}")
             return None  # Return None on error
+
+    def handlePrivmsg(self, sender_nick, target_nick, message):
+        print("okay the thing in server for priv mesg is working")
+        if target_nick in self.clients:
+            print("still working 1")
+            client = self.clients[target_nick]
+            formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {target_nick} :{message}\r\n"
+            print(f"Sending private message: {formatted_message}")
+            self.sendData(formatted_message, client)
+            print(f"Private message sent from {sender_nick} to {target_nick}: {message}")
+            print("still working 2")
+        else:
+            print(f"User {target_nick} not found.")
 
     def checkCommand(self, data):
         if not data:
@@ -132,6 +146,15 @@ class Server:
                 response = self.operation(sections[i:i+2])
             elif s == "NAMES":
                 response = self.operation(sections[i:i+2])
+            elif s == "PRIVMSG":
+                if len(sections) >= 3:
+                    sender_nick = sections[0].split('!')[0][1:]  # Extract sender's nickname
+                    target_nick = sections[1]
+                    message = ' '.join(sections[2:])
+                    print(f"Parsed !privmsg command: sender_nick={sender_nick}, target_nick={target_nick}, message={message}")
+                    self.handlePrivmsg(sender_nick, target_nick, message)
+                else:
+                    print("Incorrect format for !privmsg command.")
             else:
                 continue
 
@@ -195,7 +218,15 @@ class Server:
         removedClient = self.clients.pop(self.currentClient.getNick())
         removedClient.getSocketObj().close()
 
+    def validate_nickname(self, nickname):
+        user_list = self.user_search()  # Get list of users in the channel
+        while nickname.lower() in [user.lower() for user in user_list]:
+            nickname += str(random.randint(1, 9))  # Append a random number to the nickname
+        return nickname
+
+
     def NICK(self, nickname: str):
+        #self.nick = self.validate_nickname(self.nick)
         if self.newClient:
             # Ensure the temporary client exists in the dictionary before changing its nickname
             if "temp" in self.clients:
@@ -219,7 +250,12 @@ class Server:
                 print(f"Error: Client {self.client} not found.")
 
     def USER(self, username: str, realname: str):  # as host name and server name are not used for this project, they are ignored.
-        self.clients[username].setUser([username, realname[1:]])
+        if not realname.startswith(':'):
+            realname = ':' + realname  # Ensure the real name starts with a colon
+        if username in self.clients:
+            self.clients[username].setUser([username, realname[1:]])
+        else:
+            print(f"Error: Client {username} not found.")
 
     def JOIN(self, channel, client_name):
         if not channel:
@@ -296,13 +332,13 @@ class Server:
                         print("THIS IS THE MESSAGE: ", formatted_message)
             else:
                 print(f"Channel {channel} does not exist.")
-        # else:
+        #else:
         #     # Broadcast to all clients
         #     print("Broadcasting to all clients")
-        #     for nick, client in self.clients.items():
-        #         if nick != sender_nick:  # Don't send the message back to the sender
-        #             formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
-        #             self.sendData(formatted_message, client)
+            # for nick, client in self.clients.items():
+            #     if nick != sender_nick:  # Don't send the message back to the sender
+            #         formatted_message = f":{sender_nick}!{sender_nick}@localhost PRIVMSG {nick} :{message}\r\n"
+            #         self.sendData(formatted_message, client)
         #             print("THIS IS SENDING TO THE CLIENT: ", nick)
         #             print("THIS IS THE MESSAGE: ", formatted_message)
 
